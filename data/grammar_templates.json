@@ -1,0 +1,53 @@
+{
+  "nearly_grammatical": [
+    "the {adj} {noun} {verb} through the {noun}",
+    "{noun} of {noun} {verb} {adv}",
+    "a {adj} {noun} {verb} beneath the {adj} {noun}",
+    "the {noun} {verb} where the {noun} once stood",
+    "in the {noun} a {adj} {noun} {verb}",
+    "the {noun} was {adj} and the {noun} {verb}",
+    "between the {noun} and the {noun} something {verb}",
+    "she {verb} the {adj} {noun} {adv}",
+    "there was a {noun} that {verb} like {adj} {noun}",
+    "the {adj} {noun} {verb} and the {noun} {verb}",
+    "every {noun} {verb} its own {adj} {noun}",
+    "when the {noun} {verb} the {noun} grew {adj}",
+    "no {noun} could {verb} the {adj} {noun} of {noun}",
+    "from the {noun} came a {adj} {verb}ing {noun}",
+    "the {noun} {adv} {verb} the last {adj} {noun}"
+  ],
+  "poetic": [
+    "in the {noun} of {adj} {noun}, {noun} {verb}",
+    "where {noun} meets {noun}, the {adj} {noun} {verb}",
+    "oh {adj} {noun}, how {adv} you {verb}",
+    "beneath the {noun} of {noun}, all {noun} {verb}",
+    "{adv} the {noun} {verb}, {adj} as {noun}",
+    "what {adj} {noun} {verb} in the garden of {noun}",
+    "if {noun} could {verb}, the {noun} would weep {adv}",
+    "the {noun} remembers what the {noun} {verb}",
+    "I {verb} the {noun} of your {adj} {noun}",
+    "all the {adj} {noun} in the world cannot {verb} this {noun}",
+    "listen: the {noun} {verb} its {adj} {noun}",
+    "we are the {noun} of {adj} {noun}, {verb}ing {adv}",
+    "there is a {noun} where every {noun} {verb} {adv}",
+    "the {adj} {noun} opens like a {noun} {verb}ing",
+    "to {verb} is to become the {adj} {noun} of {noun}"
+  ],
+  "broken": [
+    "{noun} {noun} {verb} {adj}",
+    "the the the {noun} {verb}",
+    "{adj} {adj} {adj} {noun} {verb} {verb}",
+    "{noun} without {noun} {verb}",
+    "not {verb} not {verb} the {noun}",
+    "{verb} {adv} {noun} {noun} nothing",
+    "the {noun} the {noun} the {noun}",
+    "{adj} and {adj} and {adj} the {noun}",
+    "once {noun} now {noun} always {verb}",
+    "where {noun} {noun} {noun} all {adj}",
+    "{verb} the {noun} {verb} the {noun} {verb}",
+    "no {noun} no {noun} only {adj}",
+    "{noun} if {noun} then {verb} else {noun}",
+    "but {noun} but {noun} but {adj} {verb}",
+    "the {noun} {verb} {verb} {verb} into {adj}"
+  ]
+}

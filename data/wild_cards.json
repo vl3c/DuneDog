@@ -1,0 +1,182 @@
+[
+  {
+    "name": "lunar_absence",
+    "description": "The moon is now missing from the sky",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "eerie"}
+  },
+  {
+    "name": "mirror_plague",
+    "description": "All reflective surfaces begin showing a different person",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "paranoid"}
+  },
+  {
+    "name": "arrival_of_the_unnamed",
+    "description": "An entity without a name or form enters the narrative",
+    "effect_type": "add_atom",
+    "parameters": {"atom": {"name": "the unnamed presence", "category": "agent", "tags": ["unknown", "arrival"]}}
+  },
+  {
+    "name": "gravity_reversal",
+    "description": "Everything that was grounded begins to float upward slowly",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "dreamlike"}
+  },
+  {
+    "name": "language_erosion",
+    "description": "Words begin losing their meanings; characters struggle to communicate",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "disorienting"}
+  },
+  {
+    "name": "temporal_stutter",
+    "description": "A single moment repeats three times with slight variations",
+    "effect_type": "add_beat",
+    "parameters": {"beat_type": "repetition", "count": 3, "variation": "slight"}
+  },
+  {
+    "name": "the_gift",
+    "description": "An impossible object materializes in someone's hands",
+    "effect_type": "add_atom",
+    "parameters": {"atom": {"name": "an object that should not exist", "category": "object", "tags": ["impossible", "gift"]}}
+  },
+  {
+    "name": "color_drain",
+    "description": "All color slowly bleeds from the world, leaving only grey",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "melancholic"}
+  },
+  {
+    "name": "the_doubling",
+    "description": "The primary agent is duplicated; the copy behaves differently",
+    "effect_type": "add_atom",
+    "parameters": {"atom": {"name": "the double", "category": "agent", "tags": ["mirror", "uncanny"]}}
+  },
+  {
+    "name": "memory_flood",
+    "description": "A location becomes saturated with memories from every person who has ever been there",
+    "effect_type": "modify_atom",
+    "parameters": {"target_category": "location", "add_tags": ["haunted", "memory-saturated"]}
+  },
+  {
+    "name": "the_bargain",
+    "description": "A new tension appears: something precious must be traded for something necessary",
+    "effect_type": "add_atom",
+    "parameters": {"atom": {"name": "an impossible exchange", "category": "tension", "tags": ["sacrifice", "necessity"]}}
+  },
+  {
+    "name": "silence_contagion",
+    "description": "Silence spreads from one thing to the next, consuming all sound",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "hushed"}
+  },
+  {
+    "name": "name_swap",
+    "description": "Two agents in the narrative exchange identities without explanation",
+    "effect_type": "swap_atom",
+    "parameters": {"swap_category": "agent", "count": 2}
+  },
+  {
+    "name": "the_wound_opens",
+    "description": "A long-healed wound reopens, literally or metaphorically",
+    "effect_type": "add_beat",
+    "parameters": {"beat_type": "revelation", "source": "the past"}
+  },
+  {
+    "name": "botanical_invasion",
+    "description": "Plants begin growing through and over everything at an accelerated rate",
+    "effect_type": "modify_atom",
+    "parameters": {"target_category": "location", "add_tags": ["overgrown", "fecund"]}
+  },
+  {
+    "name": "the_confession",
+    "description": "An object begins emanating the emotional truth of its last owner",
+    "effect_type": "modify_atom",
+    "parameters": {"target_category": "object", "add_tags": ["confessional", "radiating"]}
+  },
+  {
+    "name": "tidal_shift",
+    "description": "The emotional register of the entire piece shifts to its opposite",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "inverted"}
+  },
+  {
+    "name": "cartographic_rupture",
+    "description": "A new location tears open in the middle of the existing setting",
+    "effect_type": "add_atom",
+    "parameters": {"atom": {"name": "the rupture", "category": "location", "tags": ["sudden", "wound"]}}
+  },
+  {
+    "name": "the_forgetting",
+    "description": "One agent loses all memory of the central tension",
+    "effect_type": "modify_atom",
+    "parameters": {"target_category": "agent", "add_tags": ["amnesiac", "unburdened"]}
+  },
+  {
+    "name": "object_migration",
+    "description": "All objects in the narrative slowly drift toward a single point",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "convergent"}
+  },
+  {
+    "name": "the_witness_arrives",
+    "description": "Someone appears who has seen all of this before",
+    "effect_type": "add_atom",
+    "parameters": {"atom": {"name": "the one who has seen this before", "category": "agent", "tags": ["witness", "weary"]}}
+  },
+  {
+    "name": "letter_from_nowhere",
+    "description": "A message arrives from outside the narrative's known world",
+    "effect_type": "add_atom",
+    "parameters": {"atom": {"name": "a letter from beyond the margins", "category": "object", "tags": ["message", "breach"]}}
+  },
+  {
+    "name": "echo_chamber",
+    "description": "Every spoken word repeats itself, each repetition slightly different",
+    "effect_type": "add_beat",
+    "parameters": {"beat_type": "echo", "degradation": "progressive"}
+  },
+  {
+    "name": "the_blooming",
+    "description": "Something dead or dormant suddenly flowers with unexpected beauty",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "transcendent"}
+  },
+  {
+    "name": "shadow_trade",
+    "description": "Two elements in the narrative swap their essential qualities",
+    "effect_type": "swap_atom",
+    "parameters": {"swap_category": "quality", "count": 2}
+  },
+  {
+    "name": "the_verdict",
+    "description": "A judgment is pronounced by an authority no one can see",
+    "effect_type": "add_beat",
+    "parameters": {"beat_type": "decree", "source": "invisible"}
+  },
+  {
+    "name": "rust_prophecy",
+    "description": "Metal objects begin to corrode, revealing hidden inscriptions beneath",
+    "effect_type": "modify_atom",
+    "parameters": {"target_category": "object", "add_tags": ["corroding", "revealing"]}
+  },
+  {
+    "name": "the_inversion",
+    "description": "Interior spaces become exterior, and exterior spaces become enclosed",
+    "effect_type": "modify_atom",
+    "parameters": {"target_category": "location", "add_tags": ["inverted", "disorienting"]}
+  },
+  {
+    "name": "orphan_trigger",
+    "description": "A trigger event fires that belongs to a different story entirely",
+    "effect_type": "add_atom",
+    "parameters": {"atom": {"name": "an event from the wrong story", "category": "trigger", "tags": ["displaced", "intrusion"]}}
+  },
+  {
+    "name": "kindness_of_strangers",
+    "description": "An act of inexplicable generosity disrupts the prevailing tension",
+    "effect_type": "change_tone",
+    "parameters": {"tone": "tender"}
+  }
+]

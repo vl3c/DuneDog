@@ -1,0 +1,55 @@
+{
+  "hero_journey": {
+    "description": "The Hero's Journey spread — departure, initiation, return",
+    "positions": [
+      {"name": "The Call", "description": "What summons the hero to adventure", "preferred_categories": ["trigger", "tension"]},
+      {"name": "The Threshold", "description": "What boundary must be crossed", "preferred_categories": ["location", "object"]},
+      {"name": "The Mentor", "description": "Who or what guides the way", "preferred_categories": ["agent", "quality"]},
+      {"name": "The Ordeal", "description": "The central trial that transforms", "preferred_categories": ["tension", "trigger"]},
+      {"name": "The Boon", "description": "What is gained through struggle", "preferred_categories": ["object", "quality"]}
+    ]
+  },
+  "three_act": {
+    "description": "Classic three-act structure — setup, confrontation, resolution",
+    "positions": [
+      {"name": "The World", "description": "The ordinary world before disruption", "preferred_categories": ["location", "quality"]},
+      {"name": "The Catalyst", "description": "The event that shatters equilibrium", "preferred_categories": ["trigger", "tension"]},
+      {"name": "The Struggle", "description": "Rising conflict and complications", "preferred_categories": ["tension", "agent"]},
+      {"name": "The Turning Point", "description": "The moment everything changes", "preferred_categories": ["trigger", "object"]},
+      {"name": "The Aftermath", "description": "How the world settles into new shape", "preferred_categories": ["quality", "location"]},
+      {"name": "The Echo", "description": "What lingers after the story ends", "preferred_categories": ["quality", "tension"]}
+    ]
+  },
+  "love_triangle": {
+    "description": "Entangled desires — passion, loyalty, and sacrifice",
+    "positions": [
+      {"name": "The Heart", "description": "The one who must choose", "preferred_categories": ["agent"]},
+      {"name": "The Flame", "description": "Passionate desire that burns", "preferred_categories": ["agent", "tension"]},
+      {"name": "The Anchor", "description": "Steady devotion that grounds", "preferred_categories": ["agent", "quality"]},
+      {"name": "The Wedge", "description": "What drives them apart", "preferred_categories": ["trigger", "object"]},
+      {"name": "The Price", "description": "What love ultimately costs", "preferred_categories": ["tension", "quality"]}
+    ]
+  },
+  "mystery": {
+    "description": "Unraveling the unknown — clues, suspects, revelations",
+    "positions": [
+      {"name": "The Crime", "description": "The event that demands investigation", "preferred_categories": ["trigger", "tension"]},
+      {"name": "The Clue", "description": "Evidence hiding in plain sight", "preferred_categories": ["object", "location"]},
+      {"name": "The Suspect", "description": "Who carries suspicion", "preferred_categories": ["agent"]},
+      {"name": "The Red Herring", "description": "The deception that misleads", "preferred_categories": ["object", "trigger"]},
+      {"name": "The Revelation", "description": "The truth that was buried", "preferred_categories": ["quality", "tension"]},
+      {"name": "The Reckoning", "description": "Justice or its absence", "preferred_categories": ["tension", "agent"]}
+    ]
+  },
+  "cosmic": {
+    "description": "Vast and strange — forces beyond human comprehension",
+    "positions": [
+      {"name": "The Void", "description": "The emptiness before all things", "preferred_categories": ["location", "quality"]},
+      {"name": "The Signal", "description": "A message from the incomprehensible", "preferred_categories": ["trigger", "object"]},
+      {"name": "The Witness", "description": "The fragile mind that perceives", "preferred_categories": ["agent"]},
+      {"name": "The Geometry", "description": "Alien patterns that reshape reality", "preferred_categories": ["quality", "location"]},
+      {"name": "The Dissolution", "description": "Identity crumbling under vast truth", "preferred_categories": ["tension", "quality"]},
+      {"name": "The Remnant", "description": "What survives the encounter with infinity", "preferred_categories": ["object", "agent"]}
+    ]
+  }
+}
