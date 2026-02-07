@@ -38,7 +38,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", help="Available commands")
 
     # -- generate --
-    gen = sub.add_parser("generate", help="Full pipeline: chaos → skeletons → stories")
+    gen = sub.add_parser("generate", help="Full pipeline: chaos -> skeletons -> stories")
     gen.add_argument("-n", "--count", type=_bounded_int(1, 10000), default=None, help="Number of skeletons (1-10000, default from preset)")
     gen.add_argument("-o", "--output", type=str, default=None, help="Output file path")
     gen.add_argument("--preset", type=str, default="deep", choices=["quick", "deep", "experimental", "custom"])
@@ -223,7 +223,7 @@ def cmd_demo(args: argparse.Namespace) -> None:
 
     # Display beats
     if skeleton.beats:
-        beat_text = " → ".join(skeleton.beats)
+        beat_text = " -> ".join(skeleton.beats)
         console.print(Panel(beat_text, title="Narrative Beats", border_style="yellow"))
 
     # Display stats
@@ -271,7 +271,7 @@ def cmd_soup(args: argparse.Namespace) -> None:
         if result.exact_words:
             console.print(f"  [cyan]Words found:[/cyan] {', '.join(result.exact_words[:20])}")
         if result.near_words:
-            near = [f"{frag}→{match}" for frag, match, _ in result.near_words[:10]]
+            near = [f"{frag}->{match}" for frag, match, _ in result.near_words[:10]]
             console.print(f"  [cyan]Near words:[/cyan] {', '.join(near)}")
         if result.neologisms:
             console.print(f"  [cyan]Neologisms:[/cyan] {', '.join(n.text for n in result.neologisms[:5])}")

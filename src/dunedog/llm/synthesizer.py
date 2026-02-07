@@ -107,7 +107,7 @@ class StorySynthesizer:
                 lines.extend(atom_strs)
 
             if sk.beats:
-                lines.append(f"Beats: {' → '.join(sk.beats)}")
+                lines.append(f"Beats: {' -> '.join(sk.beats)}")
 
             if sk.spread_positions:
                 pos_strs = [f"  {pos}: {atom}" for pos, atom in sk.spread_positions.items()]
