@@ -338,7 +338,7 @@ class TestGenerationConfig:
         assert cfg.chaos.soup_length == 400
         assert cfg.evolution.generations == 20
         assert cfg.evolution.population_size == 100
-        assert cfg.skeletons_to_generate == 500
+        assert cfg.skeletons_to_generate == 100
 
     def test_custom_preset(self):
         cfg = GenerationConfig.from_preset(Preset.CUSTOM, skeletons_to_generate=10)
