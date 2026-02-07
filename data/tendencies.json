@@ -1,0 +1,107 @@
+[
+  {
+    "name": "power_cost",
+    "description": "Power acquired always comes at great cost",
+    "probability": 0.7,
+    "effect": "add_tag",
+    "parameters": {"tag": "costly"}
+  },
+  {
+    "name": "secret_sever",
+    "description": "Secrets eventually destroy relationships",
+    "probability": 0.5,
+    "effect": "add_tension",
+    "parameters": {"tension": "broken_trust"}
+  },
+  {
+    "name": "beauty_fade",
+    "description": "Great beauty attracts jealousy and ruin",
+    "probability": 0.4,
+    "effect": "add_tension",
+    "parameters": {"tension": "envy"}
+  },
+  {
+    "name": "kindness_repaid",
+    "description": "Unexpected kindness is repaid at a critical moment",
+    "probability": 0.6,
+    "effect": "add_tag",
+    "parameters": {"tag": "repaid"}
+  },
+  {
+    "name": "exile_wisdom",
+    "description": "Those cast out gain wisdom the sheltered lack",
+    "probability": 0.5,
+    "effect": "add_tag",
+    "parameters": {"tag": "wisdom"}
+  },
+  {
+    "name": "weapon_hunger",
+    "description": "Named weapons develop appetites of their own",
+    "probability": 0.6,
+    "effect": "add_tag",
+    "parameters": {"tag": "hungry"}
+  },
+  {
+    "name": "storm_change",
+    "description": "Storms herald irreversible change",
+    "probability": 0.7,
+    "effect": "add_tag",
+    "parameters": {"tag": "transformation"}
+  },
+  {
+    "name": "betrayal_echo",
+    "description": "Betrayal breeds further betrayal down the line",
+    "probability": 0.5,
+    "effect": "add_tension",
+    "parameters": {"tension": "treachery"}
+  },
+  {
+    "name": "ruin_seed",
+    "description": "Every empire carries the seed of its own ruin",
+    "probability": 0.4,
+    "effect": "add_tag",
+    "parameters": {"tag": "decline"}
+  },
+  {
+    "name": "orphan_destiny",
+    "description": "Orphans stumble into extraordinary fates",
+    "probability": 0.8,
+    "effect": "add_tag",
+    "parameters": {"tag": "destiny"}
+  },
+  {
+    "name": "feast_before_famine",
+    "description": "Abundance precedes scarcity",
+    "probability": 0.3,
+    "effect": "add_tension",
+    "parameters": {"tension": "scarcity"}
+  },
+  {
+    "name": "old_gods_stir",
+    "description": "Forgotten gods awaken when invoked carelessly",
+    "probability": 0.4,
+    "effect": "add_tag",
+    "parameters": {"tag": "awakening"}
+  },
+  {
+    "name": "blood_memory",
+    "description": "Blood spilled on sacred ground is never forgotten",
+    "probability": 0.6,
+    "effect": "add_tag",
+    "parameters": {"tag": "haunted"}
+  },
+  {
+    "name": "traveler_change",
+    "description": "Long journeys change the traveler beyond recognition",
+    "probability": 0.7,
+    "effect": "add_tag",
+    "parameters": {"tag": "changed"}
+  },
+  {
+    "name": "mercy_test",
+    "description": "Moments of mercy become turning points",
+    "probability": 0.9,
+    "effect": "add_tag",
+    "parameters": {"tag": "pivotal"}
+  }
+]

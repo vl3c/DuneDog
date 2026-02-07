@@ -1,0 +1,107 @@
+[
+  {
+    "name": "magic_cost",
+    "description": "All magic requires a sacrifice or cost",
+    "severity": "hard",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "magic", "requires_tag": "sacrifice"}
+  },
+  {
+    "name": "dead_honesty",
+    "description": "Dead characters always speak truth",
+    "severity": "soft",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "dead", "requires_tag": "truth"}
+  },
+  {
+    "name": "cartographer_curse",
+    "description": "Mapmakers always get lost",
+    "severity": "soft",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "cartography", "requires_tag": "lost"}
+  },
+  {
+    "name": "prophecy_twist",
+    "description": "Prophecies always come true but never as expected",
+    "severity": "hard",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "prophecy", "requires_tag": "irony"}
+  },
+  {
+    "name": "forbidden_knowledge",
+    "description": "Forbidden knowledge exacts a toll on the mind",
+    "severity": "hard",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "forbidden", "requires_tag": "madness"}
+  },
+  {
+    "name": "oath_binding",
+    "description": "Sworn oaths cannot be broken without consequence",
+    "severity": "hard",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "oath", "requires_tag": "consequence"}
+  },
+  {
+    "name": "mirror_truth",
+    "description": "Mirrors reveal hidden truths about the viewer",
+    "severity": "soft",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "mirror", "requires_tag": "revelation"}
+  },
+  {
+    "name": "throne_corruption",
+    "description": "Thrones corrupt those who sit upon them",
+    "severity": "soft",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "throne", "requires_tag": "corruption"}
+  },
+  {
+    "name": "fire_purification",
+    "description": "Fire destroys but also purifies",
+    "severity": "soft",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "fire", "requires_tag": "transformation"}
+  },
+  {
+    "name": "name_power",
+    "description": "Knowing a true name grants power over the named",
+    "severity": "hard",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "true_name", "requires_tag": "power"}
+  },
+  {
+    "name": "sea_memory",
+    "description": "The sea remembers everything given to it",
+    "severity": "soft",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "sea", "requires_tag": "memory"}
+  },
+  {
+    "name": "twin_sympathy",
+    "description": "Twins share pain and sensation across any distance",
+    "severity": "hard",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "twin", "requires_tag": "sympathy"}
+  },
+  {
+    "name": "dream_leakage",
+    "description": "Dreams bleed into waking when boundaries weaken",
+    "severity": "soft",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "dream", "requires_tag": "bleed"}
+  },
+  {
+    "name": "silence_weight",
+    "description": "Prolonged silence carries unspoken meaning",
+    "severity": "soft",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "silence", "requires_tag": "meaning"}
+  },
+  {
+    "name": "debt_inheritance",
+    "description": "Unpaid debts pass to the next generation",
+    "severity": "hard",
+    "check_type": "conditional",
+    "parameters": {"if_tag": "debt", "requires_tag": "inheritance"}
+  }
+]
