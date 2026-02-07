@@ -1,2 +1,2 @@
 # DuneDog
-Primordial story engine - finding meaning in the desert of ideas
+Primordial Story Diffusion Engine - finding meaning in the desert of ideas
