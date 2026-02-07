@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 
 from dunedog.llm.provider import LLMProvider
 from dunedog.models.config import LLMConfig
 from dunedog.models.skeleton import StorySkeleton
+
+log = logging.getLogger(__name__)
 
 
 SYNTHESIS_STRATEGIES = {
@@ -62,18 +65,28 @@ class StorySynthesizer:
         if not top:
             return []
 
-        prompt = self.build_prompt(top, strategy or self._config.synthesis_strategy)
+        strat = strategy or self._config.synthesis_strategy
+        log.info("Synthesizing from %d skeletons via %s (strategy=%s)",
+                 len(top), self._provider.__class__.__name__, strat or "LLM-chosen")
+
+        prompt = self.build_prompt(top, strat)
         messages = [
             {"role": "system", "content": "You are a literary storyteller. You create vivid, interconnected short stories from narrative blueprints."},
             {"role": "user", "content": prompt},
         ]
 
+        log.info("Sending request to LLM...")
         response = await self._provider.complete(
             messages,
             temperature=self._config.temperature,
         )
+        log.info("LLM response received (%d chars)", len(response))
 
-        return self.parse_response(response, strategy or self._config.synthesis_strategy)
+        stories = self.parse_response(response, strat)
+        log.info("Parsed %d stories", len(stories))
+        for s in stories:
+            log.info("  \"%s\" (%d chars, strategy=%s)", s.title, len(s.content), s.strategy)
+        return stories
 
     def build_prompt(self, skeletons: list[StorySkeleton], strategy: str = "") -> str:
         """Build synthesis prompt from skeletons."""

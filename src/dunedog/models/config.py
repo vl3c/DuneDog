@@ -98,7 +98,7 @@ _EXPERIMENTAL_OVERRIDES: dict[str, Any] = {
     "crystallization": {"enable_neologisms": True},
     "engines": {"use_tarot": True, "use_markov": True, "use_constraint_solver": True},
     "evolution": {"enabled": True, "generations": 20, "population_size": 100, "mutation_rate": 0.15},
-    "skeletons_to_generate": 500,
+    "skeletons_to_generate": 100,
     "llm": {"max_stories_for_llm": 20},
 }
 

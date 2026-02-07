@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import random
 
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+
+log = logging.getLogger(__name__)
 
 from dunedog.models.config import GenerationConfig, EvolutionConfig
 from dunedog.models.results import SamplingStrategy, LetterSoupResult, DictionaryChaosResult
@@ -67,6 +70,10 @@ class StoryBatchGenerator:
         self._init_components()
         count = n or self.config.skeletons_to_generate
         skeletons: list[StorySkeleton] = []
+        log_interval = max(1, count // 20)  # log every ~5%
+
+        log.info("Generating %d skeletons (preset=%s, seed=%s)",
+                 count, self.config.preset.value, self.config.seed)
 
         if show_progress:
             with Progress(
@@ -81,18 +88,32 @@ class StoryBatchGenerator:
                     sk = self.generate_single(rng)
                     skeletons.append(sk)
                     progress.update(task, advance=1)
+                    if (i + 1) % log_interval == 0:
+                        best = max(s.coherence_score for s in skeletons)
+                        log.debug("Skeleton %d/%d — best coherence %.4f", i + 1, count, best)
         else:
             for i in range(count):
                 rng = self._seed_mgr.child_rng(f"skeleton_{i}")
                 sk = self.generate_single(rng)
                 skeletons.append(sk)
+                if (i + 1) % log_interval == 0 or (i + 1) == count:
+                    best = max(s.coherence_score for s in skeletons)
+                    log.info("Skeleton %d/%d (%d%%) — best coherence %.4f",
+                             i + 1, count, 100 * (i + 1) // count, best)
 
         # Evolutionary refinement
         if self.config.evolution.enabled and self.config.evolution.generations > 0:
+            log.info("Starting evolution: %d generations, population %d",
+                     self.config.evolution.generations, self.config.evolution.population_size)
             skeletons = self._evolve(skeletons)
+            log.info("Evolution complete")
 
         # Sort by coherence score
         skeletons.sort(key=lambda s: s.coherence_score, reverse=True)
+        log.info("Done: %d skeletons, best=%.4f, median=%.4f, worst=%.4f",
+                 len(skeletons), skeletons[0].coherence_score,
+                 skeletons[len(skeletons) // 2].coherence_score,
+                 skeletons[-1].coherence_score)
         return skeletons
 
     def generate_single(self, rng: random.Random) -> StorySkeleton:
