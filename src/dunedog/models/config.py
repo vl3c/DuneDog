@@ -5,7 +5,7 @@ from __future__ import annotations
 import enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 
 class Preset(enum.Enum):
@@ -58,7 +58,7 @@ class LLMConfig(BaseModel):
     """Configuration for LLM synthesis."""
     provider: str = "anthropic"
     model: str = ""
-    api_key: str = ""
+    api_key: SecretStr = SecretStr("")
     story_lines: int = 20
     max_stories_for_llm: int = 20
     synthesis_strategy: str = ""  # empty = let LLM choose

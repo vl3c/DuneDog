@@ -364,6 +364,6 @@ class TestLLMConfig:
         llm = LLMConfig()
         assert llm.provider == "anthropic"
         assert llm.model == ""
-        assert llm.api_key == ""
+        assert llm.api_key.get_secret_value() == ""
         assert llm.story_lines == 20
         assert llm.temperature == 0.8

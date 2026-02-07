@@ -96,7 +96,11 @@ class NeologismDefiner:
 
         pos_templates = templates.get(pos, templates.get("noun", []))
         template = rng.choice(pos_templates)
-        definition = template.format(word=neologism.text, mood=mood, context=context)
+        definition = (
+            template.replace("{word}", neologism.text)
+            .replace("{mood}", mood)
+            .replace("{context}", context)
+        )
 
         usage = self.generate_usage_example(neologism.text, pos, definition, rng)
 
@@ -148,4 +152,4 @@ class NeologismDefiner:
         }
         templates = patterns.get(pos, patterns["noun"])
         template = rng.choice(templates)
-        return template.format(word=word)
+        return template.replace("{word}", word)

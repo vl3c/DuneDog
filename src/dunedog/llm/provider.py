@@ -2,6 +2,10 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 
+import httpx
+
+DEFAULT_TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=10.0)
+
 
 class LLMError(Exception):
     """Error from LLM provider."""
@@ -15,6 +19,10 @@ class LLMProvider(ABC):
         self.api_key = api_key
         self.model = model
         self.kwargs = kwargs
+
+    def __repr__(self) -> str:
+        key_display = "***" if self.api_key else ""
+        return f"{self.__class__.__name__}(api_key='{key_display}', model='{self.model}')"
 
     @abstractmethod
     async def complete(self, messages: list[dict], **kwargs) -> str:

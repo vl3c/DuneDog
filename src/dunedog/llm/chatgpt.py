@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import httpx
 
-from .provider import LLMError, LLMProvider
+from .provider import DEFAULT_TIMEOUT, LLMError, LLMProvider
 
 
 class ChatGPTProvider(LLMProvider):
@@ -38,7 +38,7 @@ class ChatGPTProvider(LLMProvider):
             "model": self.model,
         }
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
                 resp = await client.post(self.API_URL, headers=headers, json=body)
                 resp.raise_for_status()
                 data = resp.json()

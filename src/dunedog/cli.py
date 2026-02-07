@@ -11,10 +11,23 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from pydantic import SecretStr
+
 from dunedog.models.config import GenerationConfig, Preset
 
 
 console = Console()
+
+
+def _bounded_int(lo: int, hi: int):
+    """Return an argparse type function that enforces lo <= value <= hi."""
+    def _parse(value: str) -> int:
+        iv = int(value)
+        if iv < lo or iv > hi:
+            raise argparse.ArgumentTypeError(f"must be between {lo} and {hi}, got {value}")
+        return iv
+    _parse.__name__ = f"int[{lo}..{hi}]"
+    return _parse
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -26,14 +39,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # -- generate --
     gen = sub.add_parser("generate", help="Full pipeline: chaos → skeletons → stories")
-    gen.add_argument("-n", "--count", type=int, default=None, help="Number of skeletons (default from preset)")
+    gen.add_argument("-n", "--count", type=_bounded_int(1, 10000), default=None, help="Number of skeletons (1-10000, default from preset)")
     gen.add_argument("-o", "--output", type=str, default=None, help="Output file path")
     gen.add_argument("--preset", type=str, default="deep", choices=["quick", "deep", "experimental", "custom"])
     gen.add_argument("--provider", type=str, default=None, choices=["openai", "anthropic", "openrouter", "chatgpt"])
     gen.add_argument("--model", type=str, default=None, help="Model name (provider-specific)")
-    gen.add_argument("--api-key", type=str, default=None, help="API key (or use env var)")
-    gen.add_argument("--story-lines", type=int, default=20, help="Max lines per story (default 20)")
-    gen.add_argument("--stories-for-llm", type=int, default=20, help="Max skeletons sent to LLM (default 20, max 20)")
+    gen.add_argument("--api-key", type=str, default=None, help="API key (prefer env var; visible in process list)")
+    gen.add_argument("--story-lines", type=_bounded_int(1, 200), default=20, help="Max lines per story (1-200, default 20)")
+    gen.add_argument("--stories-for-llm", type=_bounded_int(1, 20), default=20, help="Max skeletons sent to LLM (1-20, default 20)")
     gen.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     gen.add_argument("--no-llm", action="store_true", help="Skip LLM synthesis, export skeletons only")
 
@@ -47,15 +60,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # -- soup --
     soup = sub.add_parser("soup", help="Generate letter soup only")
-    soup.add_argument("-l", "--length", type=int, default=200, help="Soup length (default 200)")
-    soup.add_argument("-n", "--count", type=int, default=1, help="Number of soups (default 1)")
+    soup.add_argument("-l", "--length", type=_bounded_int(1, 10000), default=200, help="Soup length (1-10000, default 200)")
+    soup.add_argument("-n", "--count", type=_bounded_int(1, 10000), default=1, help="Number of soups (1-10000, default 1)")
     soup.add_argument("--seed", type=int, default=None)
 
     # -- evolve --
     evolve = sub.add_parser("evolve", help="Evolve existing skeletons")
     evolve.add_argument("-i", "--input", type=str, required=True, help="Input skeleton JSON")
     evolve.add_argument("-o", "--output", type=str, required=True, help="Output file")
-    evolve.add_argument("-g", "--generations", type=int, default=5, help="Number of generations")
+    evolve.add_argument("-g", "--generations", type=_bounded_int(1, 1000), default=5, help="Number of generations (1-1000, default 5)")
     evolve.add_argument("--seed", type=int, default=None)
 
     # -- setup --
@@ -89,13 +102,13 @@ def cmd_generate(args: argparse.Namespace) -> None:
     if args.count is not None:
         config.skeletons_to_generate = args.count
     config.llm.story_lines = args.story_lines
-    config.llm.max_stories_for_llm = min(args.stories_for_llm, 20)
+    config.llm.max_stories_for_llm = args.stories_for_llm
 
     if args.provider:
         config.llm.provider = args.provider
     if args.model:
         config.llm.model = args.model
-    config.llm.api_key = _resolve_api_key(args.provider, args.api_key)
+    config.llm.api_key = SecretStr(_resolve_api_key(args.provider, args.api_key))
 
     seed_mgr = SeedManager(config.seed)
     generator = StoryBatchGenerator(config, seed_mgr)
@@ -117,7 +130,7 @@ def cmd_generate(args: argparse.Namespace) -> None:
         return
 
     # LLM synthesis
-    if not config.llm.api_key:
+    if not config.llm.api_key.get_secret_value():
         console.print("[yellow]No API key provided. Use --api-key or set environment variable.[/yellow]")
         console.print("[yellow]Falling back to skeleton export.[/yellow]")
         output_path = args.output or "skeletons.json"
@@ -130,7 +143,7 @@ def cmd_generate(args: argparse.Namespace) -> None:
 
     provider = create_provider(
         config.llm.provider,
-        api_key=config.llm.api_key,
+        api_key=config.llm.api_key.get_secret_value(),
         model=config.llm.model,
     )
     synthesizer = StorySynthesizer(provider, config.llm)
@@ -144,8 +157,8 @@ def cmd_generate(args: argparse.Namespace) -> None:
         console.print(f"\n[bold green]Generated {len(stories)} stories:[/bold green]\n")
         for story in stories:
             console.print(Panel(
-                story.content,
-                title=f"[bold]{story.title}[/bold]",
+                Text(story.content),
+                title=Text(story.title, style="bold"),
                 subtitle=f"Strategy: {story.strategy}",
                 border_style="blue",
             ))
@@ -239,7 +252,7 @@ def cmd_demo(args: argparse.Namespace) -> None:
             console.print("\n[bold]Synthesizing story...[/bold]")
             stories = asyncio.run(synthesizer.synthesize([skeleton]))
             for story in stories:
-                console.print(Panel(story.content, title=story.title, border_style="blue"))
+                console.print(Panel(Text(story.content), title=Text(story.title), border_style="blue"))
 
 
 def cmd_soup(args: argparse.Namespace) -> None:
@@ -354,10 +367,17 @@ def main() -> None:
     }
 
     cmd_func = commands.get(args.command)
-    if cmd_func:
-        cmd_func(args)
-    else:
+    if not cmd_func:
         parser.print_help()
+        sys.exit(1)
+
+    try:
+        cmd_func(args)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted.[/yellow]")
+        sys.exit(130)
+    except Exception as exc:
+        console.print(f"[red]Error: {exc}[/red]")
         sys.exit(1)
 
 
