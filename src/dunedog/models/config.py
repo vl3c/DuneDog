@@ -5,7 +5,7 @@ from __future__ import annotations
 import enum
 from typing import Any
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 
 class Preset(enum.Enum):
@@ -24,6 +24,14 @@ class ChaosConfig(BaseModel):
     dictionary_word_count: int = 30
     sampling_strategy: str = "uniform"
     enable_near_words: bool = True
+
+    @field_validator("sampling_strategy")
+    @classmethod
+    def _valid_strategy(cls, v: str) -> str:
+        valid = {"uniform", "frequency_weighted", "rare_words", "noun_heavy", "phonetic_cluster"}
+        if v not in valid:
+            raise ValueError(f"Invalid sampling_strategy '{v}', must be one of {sorted(valid)}")
+        return v
 
 
 class CrystallizationConfig(BaseModel):

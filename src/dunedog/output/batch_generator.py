@@ -118,10 +118,12 @@ class StoryBatchGenerator:
                 dict_rng, strategy, cfg.chaos.dictionary_word_count, soup_result,
             )
 
-        # Collect all extracted words
+        # Collect all extracted words (including neologisms)
         all_words: list[str] = []
         if soup_result:
             all_words.extend(soup_result.all_words())
+            if cfg.crystallization.enable_neologisms:
+                all_words.extend(n.text for n in soup_result.neologisms)
         if chaos_result:
             all_words.extend(chaos_result.combined_words or chaos_result.sampled_words)
 
@@ -145,7 +147,8 @@ class StoryBatchGenerator:
 
         if cfg.engines.use_tarot and atoms:
             spread_rng = random.Random(rng.randint(0, 2**63))
-            spread_type = rng.choice(self._tarot.spread_types)
+            available_spreads = cfg.engines.spread_types or self._tarot.spread_types
+            spread_type = rng.choice(available_spreads)
             skeleton = self._tarot.generate_skeleton(spread_type, atoms, spread_rng)
 
         if skeleton is None:

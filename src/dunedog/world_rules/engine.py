@@ -130,12 +130,15 @@ class WorldRulesEngine:
             effect = tendency.effect
             params = tendency.parameters
 
+            mutated = False
+
             if effect == "add_tag":
                 tag = params.get("tag", "")
                 if tag and skeleton.atoms:
                     atom = rng.choice(skeleton.atoms)
                     if tag not in atom.tags:
                         atom.tags.append(tag)
+                        mutated = True
 
             elif effect == "add_tension":
                 tension_name = params.get("tension", "")
@@ -148,18 +151,22 @@ class WorldRulesEngine:
                             tags=["tension", tension_name],
                         )
                     )
+                    mutated = True
 
             elif effect == "modify_tone":
                 tone = params.get("tone", "")
                 if tone:
                     skeleton.tone = tone
+                    mutated = True
 
             elif effect == "add_beat":
                 beat = params.get("beat", "")
                 if beat:
                     skeleton.beats.append(beat)
+                    mutated = True
 
-            applied.append(tendency.name)
+            if mutated:
+                applied.append(tendency.name)
 
         return applied
 

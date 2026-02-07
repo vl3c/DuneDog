@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import random
 from abc import ABC, abstractmethod
 
@@ -43,9 +44,10 @@ class RandomSimilarity(SimilarityEngine):
         self._rng = rng
 
     def similarity(self, word_a: str, word_b: str) -> float:
-        # Deterministic per pair: seed on sorted pair so order doesn't matter.
-        pair = tuple(sorted((word_a, word_b)))
-        r = random.Random(hash(pair))
+        # Deterministic per pair: use SHA-256 for a stable hash across processes.
+        pair = "|".join(sorted((word_a, word_b)))
+        seed = int(hashlib.sha256(pair.encode()).hexdigest()[:16], 16)
+        r = random.Random(seed)
         return r.random()
 
     def most_similar(

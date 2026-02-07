@@ -108,7 +108,7 @@ def cmd_generate(args: argparse.Namespace) -> None:
         config.llm.provider = args.provider
     if args.model:
         config.llm.model = args.model
-    config.llm.api_key = SecretStr(_resolve_api_key(args.provider, args.api_key))
+    config.llm.api_key = SecretStr(_resolve_api_key(args.provider or config.llm.provider, args.api_key))
 
     seed_mgr = SeedManager(config.seed)
     generator = StoryBatchGenerator(config, seed_mgr)

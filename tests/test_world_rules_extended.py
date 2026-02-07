@@ -280,8 +280,8 @@ class TestApplyTendencies:
         )]
         rng = random.Random(42)
         applied = engine.apply_tendencies(skeleton, rng)
-        # Tendency still fires but has no atom to apply to
-        assert "test_tend" in applied
+        # Tendency fires but has no atom to apply to — no mutation recorded
+        assert "test_tend" not in applied
 
     def test_add_tension(self):
         engine = WorldRulesEngine()
@@ -361,7 +361,7 @@ class TestApplyTendencies:
         assert "TWIST" in skeleton.beats
         assert skeleton.tone == "eerie"
 
-    def test_unknown_effect_still_recorded(self):
+    def test_unknown_effect_not_recorded(self):
         engine = WorldRulesEngine()
         skeleton = _make_skeleton()
         engine._tendencies = [_make_tendency(
@@ -371,7 +371,7 @@ class TestApplyTendencies:
             parameters={},
         )]
         applied = engine.apply_tendencies(skeleton, random.Random(42))
-        assert "weird" in applied
+        assert "weird" not in applied
 
 
 # ------------------------------------------------------------------ #
