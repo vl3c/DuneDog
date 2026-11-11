@@ -38,7 +38,6 @@ class CrystallizationConfig(BaseModel):
     """Configuration for crystallization."""
     enable_neologisms: bool = True
     max_neologisms: int = 3  # only the most pronounceable coinages become atoms
-    similarity_threshold: float = 0.6
     max_atoms_per_category: int = 10
 
 

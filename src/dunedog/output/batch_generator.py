@@ -53,10 +53,7 @@ class StoryBatchGenerator:
         self._catalogue = AtomCatalogue.load()
         self._soup_gen = LetterSoupGenerator()
         self._dict_engine = DictionaryChaosEngine()
-        self._crystallizer = SeedCrystallizer(
-            catalogue=self._catalogue,
-            similarity_threshold=self.config.crystallization.similarity_threshold,
-        )
+        self._crystallizer = SeedCrystallizer(catalogue=self._catalogue)
         self._neologism_definer = NeologismDefiner()
         self._tarot = TarotSpreadEngine(catalogue=self._catalogue)
         self._markov = NarrativeMarkovChain()

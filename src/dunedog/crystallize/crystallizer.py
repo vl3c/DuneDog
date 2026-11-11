@@ -65,12 +65,8 @@ class SeedCrystallizer:
     def __init__(
         self,
         catalogue: AtomCatalogue | None = None,
-        similarity_threshold: float = 0.6,
     ) -> None:
         self._catalogue = catalogue or AtomCatalogue.load()
-        # Kept for config compatibility; matching is now by shared meaning
-        # keys (see map_to_catalogue), not by a similarity score.
-        self._threshold = similarity_threshold
         self._key_index = self._build_key_index()
 
     def _build_key_index(self) -> dict[str, list[StoryAtom]]:
