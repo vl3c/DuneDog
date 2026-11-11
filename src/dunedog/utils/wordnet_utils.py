@@ -54,7 +54,9 @@ def get_hypernyms(word: str) -> list[str]:
         if not syns:
             return []
         lemmas: list[str] = []
-        for hypernym in syns[0].hypernyms():
+        # Sorted: NLTK's hypernym order varies between processes, and callers
+        # use the first entry, so an unsorted list breaks reproducibility.
+        for hypernym in sorted(syns[0].hypernyms(), key=lambda h: h.name()):
             lemmas.extend(l.name() for l in hypernym.lemmas())
         return lemmas
     except Exception:
