@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import random
+from collections.abc import Callable
 from pathlib import Path
 
 from dunedog.models.skeleton import StorySkeleton, EvolutionResult, GenerationStats
 from dunedog.models.config import EvolutionConfig
-from dunedog.models.atoms import StoryAtom, AtomCategory, AtomSource
+from dunedog.models.atoms import GENERIC_TAGS, StoryAtom, AtomCategory, AtomSource
 from dunedog.engines.constraint_solver import WorldConstraintSolver
 from dunedog.catalogues.loader import AtomCatalogue
 
@@ -79,13 +81,31 @@ class StoryEvolutionEngine:
         """
         fitness_history: list[float] = []
 
+        # Mutation draws from what the chaos actually produced for this run,
+        # not from the whole catalogue.  Otherwise a few generations replace
+        # every chaos-derived atom with an arbitrary one and the letter soup
+        # stops mattering.
+        gene_pool: dict[AtomCategory, list[StoryAtom]] = {}
+        for skeleton in population:
+            for atom in skeleton.atoms:
+                pool = gene_pool.setdefault(atom.category, [])
+                if all(atom.name != other.name for other in pool):
+                    pool.append(atom)
+
         for gen in range(config.generations):
             # Score population
             for skeleton in population:
                 self._solver.score_and_update(skeleton)
 
-            population.sort(key=lambda s: s.coherence_score, reverse=True)
-            fitness_history.append(population[0].coherence_score)
+            # Fitness rewards coherence *and* being unlike the rest of the
+            # population; coherence alone breeds a population of clones.
+            fitness = {
+                id(s): s.coherence_score
+                + config.novelty_weight * self.calculate_novelty(s, population)
+                for s in population
+            }
+            population.sort(key=lambda s: fitness[id(s)], reverse=True)
+            fitness_history.append(max(s.coherence_score for s in population))
 
             # Create offspring
             offspring: list[StorySkeleton] = []
@@ -95,6 +115,7 @@ class StoryEvolutionEngine:
                 parent_a, parent_b = self.select_parents(
                     population, "tournament", rng,
                     tournament_size=config.tournament_size,
+                    fitness=lambda s: fitness[id(s)],
                 )
                 if rng.random() < config.crossover_rate:
                     child_a, child_b = self.crossover(parent_a, parent_b, rng)
@@ -102,8 +123,8 @@ class StoryEvolutionEngine:
                     child_a = self._copy_skeleton(parent_a)
                     child_b = self._copy_skeleton(parent_b)
 
-                child_a = self.mutate(child_a, rng, config.mutation_rate)
-                child_b = self.mutate(child_b, rng, config.mutation_rate)
+                child_a = self.mutate(child_a, rng, config.mutation_rate, gene_pool)
+                child_b = self.mutate(child_b, rng, config.mutation_rate, gene_pool)
 
                 if rng.random() < config.wild_card_rate and self._wild_cards:
                     child_a = self.inject_wild_card(child_a, rng)
@@ -139,8 +160,12 @@ class StoryEvolutionEngine:
         method: str,
         rng: random.Random,
         tournament_size: int = 3,
+        fitness: Callable[[StorySkeleton], float] | None = None,
     ) -> tuple[StorySkeleton, StorySkeleton]:
         """Select two parents.
+
+        *fitness* overrides the score used by tournament selection
+        (default: coherence score).
 
         Methods:
         - "tournament": pick best of k random individuals (repeat for 2nd parent)
@@ -148,8 +173,8 @@ class StoryEvolutionEngine:
         - "rank": probability proportional to rank position
         """
         if method == "tournament":
-            parent_a = self._tournament_select(population, tournament_size, rng)
-            parent_b = self._tournament_select(population, tournament_size, rng)
+            parent_a = self._tournament_select(population, tournament_size, rng, fitness)
+            parent_b = self._tournament_select(population, tournament_size, rng, fitness)
         elif method == "roulette":
             parent_a = self._roulette_select(population, rng)
             parent_b = self._roulette_select(population, rng)
@@ -166,11 +191,12 @@ class StoryEvolutionEngine:
         population: list[StorySkeleton],
         k: int,
         rng: random.Random,
+        fitness: Callable[[StorySkeleton], float] | None = None,
     ) -> StorySkeleton:
         """Pick the best of *k* randomly chosen individuals."""
         k = min(k, len(population))
         contestants = rng.sample(population, k)
-        return max(contestants, key=lambda s: s.coherence_score)
+        return max(contestants, key=fitness or (lambda s: s.coherence_score))
 
     def _roulette_select(
         self,
@@ -211,7 +237,7 @@ class StoryEvolutionEngine:
 
         - Swap random subset of atoms between parents
         - Splice beat sequences at a random crossover point
-        - Union theme tags, pick tone from one parent
+        - Re-derive theme tags from each child's atoms, pick tone from one parent
         """
         child_a = self._copy_skeleton(parent_a)
         child_b = self._copy_skeleton(parent_b)
@@ -227,10 +253,14 @@ class StoryEvolutionEngine:
             indices_b = rng.sample(range(len(atoms_b)), min(n_swap, len(atoms_b)))
 
             for ia, ib in zip(indices_a, indices_b):
+                # The incoming atom takes over the spread position of the
+                # atom it replaces, so the reading survives breeding.
+                self._rename_in_spread(child_a, atoms_a[ia].name, atoms_b[ib].name)
+                self._rename_in_spread(child_b, atoms_b[ib].name, atoms_a[ia].name)
                 atoms_a[ia], atoms_b[ib] = atoms_b[ib], atoms_a[ia]
 
-            child_a.atoms = atoms_a
-            child_b.atoms = atoms_b
+            child_a.atoms = self._unique_atoms(atoms_a)
+            child_b.atoms = self._unique_atoms(atoms_b)
 
         # --- Beat crossover: single-point splice ---
         beats_a = list(child_a.beats)
@@ -244,10 +274,11 @@ class StoryEvolutionEngine:
             child_a.beats = new_beats_a
             child_b.beats = new_beats_b
 
-        # --- Theme tags: union ---
-        all_tags = list(dict.fromkeys(child_a.theme_tags + child_b.theme_tags))
-        child_a.theme_tags = list(all_tags)
-        child_b.theme_tags = list(all_tags)
+        # --- Theme tags: follow the atoms each child ended up with ---
+        # (A union of both parents' tags grows every generation until every
+        # skeleton claims every theme.)
+        child_a.theme_tags = self._themes_of(child_a)
+        child_b.theme_tags = self._themes_of(child_b)
 
         # --- Tone: each child takes tone from one parent ---
         if rng.random() < 0.5:
@@ -260,18 +291,45 @@ class StoryEvolutionEngine:
         return child_a, child_b
 
     @staticmethod
+    def _rename_in_spread(skeleton: StorySkeleton, old: str, new: str) -> None:
+        """Hand *old*'s spread positions over to *new*."""
+        for pos, name in skeleton.spread_positions.items():
+            if name == old:
+                skeleton.spread_positions[pos] = new
+
+    @staticmethod
+    def _unique_atoms(atoms: list[StoryAtom]) -> list[StoryAtom]:
+        """Drop repeated atoms (by name), keeping first occurrences."""
+        seen: set[str] = set()
+        unique: list[StoryAtom] = []
+        for atom in atoms:
+            if atom.name not in seen:
+                seen.add(atom.name)
+                unique.append(atom)
+        return unique
+
+    @staticmethod
     def _rebuild_spread_positions(skeleton: StorySkeleton) -> dict[str, str]:
         """Rebuild spread_positions from current atoms.
 
         Keeps existing position names but maps them to atoms that are
-        still present. Drops positions whose atoms were swapped out.
+        still present. Drops positions whose atoms were swapped out, and
+        positions whose atom already holds an earlier position.
         """
         atom_names = {a.name for a in skeleton.atoms}
-        return {
-            pos: name
-            for pos, name in skeleton.spread_positions.items()
-            if name in atom_names
-        }
+        rebuilt: dict[str, str] = {}
+        for pos, name in skeleton.spread_positions.items():
+            if name in atom_names and name not in rebuilt.values():
+                rebuilt[pos] = name
+        return rebuilt
+
+    @staticmethod
+    def _themes_of(skeleton: StorySkeleton) -> list[str]:
+        """Theme tags carried by the atoms actually present in *skeleton*."""
+        return list(dict.fromkeys(
+            tag for atom in skeleton.atoms for tag in atom.tags
+            if tag not in GENERIC_TAGS
+        ))
 
     # ------------------------------------------------------------------
     # Mutation
@@ -282,11 +340,14 @@ class StoryEvolutionEngine:
         skeleton: StorySkeleton,
         rng: random.Random,
         rate: float = 0.1,
+        gene_pool: dict[AtomCategory, list[StoryAtom]] | None = None,
     ) -> StorySkeleton:
         """Mutate a skeleton with given probability per element.
 
         Possible mutations:
-        - Swap a random atom for a different one from catalogue
+        - Swap a random atom for a different one of the same category, taken
+          from *gene_pool* (atoms as they are, provenance intact) or, without
+          a pool, from the catalogue (marked as evolved)
         - Reroll a random spread position value
         - Shuffle a segment of beats
         - Change tone randomly
@@ -296,14 +357,23 @@ class StoryEvolutionEngine:
             for i in range(len(skeleton.atoms)):
                 if rng.random() < rate:
                     old = skeleton.atoms[i]
-                    replacements = self._catalogue.get_by_category(old.category)
+                    if old.source == AtomSource.NEOLOGISM:
+                        continue  # coined words are the rarest thing the chaos makes
+                    from_pool = gene_pool is not None
+                    replacements = (
+                        gene_pool.get(old.category, []) if from_pool
+                        else self._catalogue.get_by_category(old.category)
+                    )
                     if replacements:
                         new_atom = rng.choice(replacements)
-                        # Copy and mark as evolved
+                        if any(a.name == new_atom.name for a in skeleton.atoms):
+                            continue  # already in this story
+                        self._rename_in_spread(skeleton, old.name, new_atom.name)
+                        # Copy; catalogue draws are marked as evolved
                         skeleton.atoms[i] = StoryAtom(
                             name=new_atom.name,
                             category=new_atom.category,
-                            source=AtomSource.EVOLVED,
+                            source=new_atom.source if from_pool else AtomSource.EVOLVED,
                             tags=list(new_atom.tags),
                             rarity=new_atom.rarity,
                             metadata=dict(new_atom.metadata),
@@ -314,8 +384,12 @@ class StoryEvolutionEngine:
             positions = list(skeleton.spread_positions.keys())
             for pos in positions:
                 if rng.random() < rate:
-                    atom = rng.choice(skeleton.atoms)
-                    skeleton.spread_positions[pos] = atom.name
+                    # Recast the position with an atom that has no role yet;
+                    # one atom in two positions reads as a mistake.
+                    placed = set(skeleton.spread_positions.values())
+                    unplaced = [a for a in skeleton.atoms if a.name not in placed]
+                    if unplaced:
+                        skeleton.spread_positions[pos] = rng.choice(unplaced).name
 
         # Mutate beats: `rate` chance of shuffling a segment
         if len(skeleton.beats) > 2 and rng.random() < rate:
@@ -347,6 +421,12 @@ class StoryEvolutionEngine:
         card = rng.choice(self._wild_cards)
         effect = card.get("effect_type", "")
         params = card.get("parameters", {})
+
+        # The description is the actual idea ("The moon is now missing from
+        # the sky"); the mechanical effect below is only its shadow.
+        description = card.get("description", "")
+        if description and description not in skeleton.disruptions:
+            skeleton.disruptions.append(description)
 
         if effect == "add_atom":
             atom_data = params.get("atom", {})
@@ -417,42 +497,47 @@ class StoryEvolutionEngine:
         self,
         skeleton: StorySkeleton,
         population: list[StorySkeleton],
+        neighbours: int = 3,
     ) -> float:
-        """Score novelty 0.0-1.0 based on unique atom combinations.
+        """Score novelty 0.0-1.0: how far the skeleton is from its nearest kin.
 
-        Skeletons with atom sets that differ most from the population
-        average get higher scores.
+        A skeleton's signature is its atoms plus the roles of its spread, so
+        a rare spread type counts as novel too.  Novelty is the mean Jaccard
+        distance to the *neighbours* closest other skeletons.  (Averaging
+        over the whole population says almost nothing: nearly everything is
+        far from the average skeleton, including the tenth copy of a clone.)
         """
         if not population:
             return 1.0
-
-        target_names = frozenset(a.name for a in skeleton.atoms)
-        if not target_names:
+        if not skeleton.atoms:
             return 0.0
 
-        # Calculate Jaccard distance to each other skeleton
+        def signature(sk: StorySkeleton) -> frozenset[str]:
+            return frozenset(a.name for a in sk.atoms) | frozenset(sk.spread_positions)
+
+        target = signature(skeleton)
         distances: list[float] = []
         for other in population:
-            other_names = frozenset(a.name for a in other.atoms)
-            if not other_names and not target_names:
-                distances.append(0.0)
+            if other is skeleton:
                 continue
-            union = target_names | other_names
-            intersection = target_names & other_names
-            if union:
-                jaccard_dist = 1.0 - len(intersection) / len(union)
-            else:
-                jaccard_dist = 0.0
-            distances.append(jaccard_dist)
+            other_sig = signature(other)
+            union = target | other_sig
+            distances.append(1.0 - len(target & other_sig) / len(union) if union else 0.0)
 
-        # Average distance = novelty
-        avg_distance = sum(distances) / len(distances) if distances else 0.0
-        return max(0.0, min(1.0, avg_distance))
+        if not distances:
+            return 1.0
+        nearest = sorted(distances)[:neighbours]
+        return max(0.0, min(1.0, sum(nearest) / len(nearest)))
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
     def _copy_skeleton(self, skeleton: StorySkeleton) -> StorySkeleton:
-        """Deep copy a skeleton for modification."""
-        return StorySkeleton.from_dict(skeleton.to_dict())
+        """Deep copy a skeleton for modification.
+
+        A real deep copy: ``to_dict`` hands out the skeleton's own lists and
+        dicts, so a round-trip copy would share beats and spread positions
+        with its parent and mutating the child would corrupt the parent.
+        """
+        return copy.deepcopy(skeleton)

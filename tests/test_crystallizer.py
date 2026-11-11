@@ -4,7 +4,7 @@ import random
 
 from dunedog.crystallize.crystallizer import SeedCrystallizer, CrystallizationResult
 from dunedog.crystallize.neologism_definer import NeologismDefiner
-from dunedog.models.atoms import AtomCategory, StoryAtom
+from dunedog.models.atoms import AtomCategory, AtomSource, StoryAtom
 from dunedog.models.results import Neologism
 
 
@@ -31,6 +31,42 @@ class TestCrystallize:
         names = [a.name for a in result.all_atoms] + result.unmapped_words
         # All forms should collapse to one entry
         assert len(names) <= 1 or len(set(n.lower() for n in names)) == 1
+
+
+class TestMapToCatalogue:
+    """Chaos words should be able to reach the curated, multi-word atoms."""
+
+    def test_name_word_evokes_multiword_atom(self, catalogue):
+        atom = SeedCrystallizer(catalogue=catalogue).map_to_catalogue("shadow")
+        assert atom is not None
+        assert atom.source == AtomSource.CATALOGUE
+        assert "shadow" in atom.name or "shadow" in atom.tags
+        assert atom.metadata["evoked_by"] == "shadow"
+
+    def test_tag_evokes_atom(self, catalogue):
+        atom = SeedCrystallizer(catalogue=catalogue).map_to_catalogue("ritual")
+        assert atom is not None
+        assert "ritual" in atom.tags
+
+    def test_returns_copy_not_catalogue_atom(self, catalogue):
+        atom = SeedCrystallizer(catalogue=catalogue).map_to_catalogue("ritual")
+        atom.tags.append("tampered")
+        assert all("tampered" not in a.tags for a in catalogue.atoms)
+
+    def test_gibberish_evokes_nothing(self, catalogue):
+        assert SeedCrystallizer(catalogue=catalogue).map_to_catalogue("xqzvk") is None
+
+    def test_choice_is_deterministic(self, catalogue):
+        c = SeedCrystallizer(catalogue=catalogue)
+        a = c.map_to_catalogue("memory", random.Random(7))
+        b = c.map_to_catalogue("memory", random.Random(7))
+        assert a.name == b.name
+
+    def test_crystallize_never_repeats_an_atom(self, rng, catalogue):
+        result = SeedCrystallizer(catalogue=catalogue).crystallize(
+            ["ritual", "memory", "shadow", "ritual", "time", "silence"], rng)
+        names = [a.name for a in result.mapped_atoms]
+        assert names and len(names) == len(set(names))
 
 
 class TestInferCategory:

@@ -133,3 +133,41 @@ class TestExporterCSV:
         }
         assert expected_fields == set(reader.fieldnames)
         assert rows[0]["tone"] == "dark"
+
+
+class TestCreativeMaterial:
+    """What reaches the skeletons should be curated atoms and a few coinages."""
+
+    def _batch(self):
+        config = GenerationConfig.from_preset("deep", seed=7, skeletons_to_generate=6)
+        config.evolution.enabled = False
+        return config, StoryBatchGenerator(config).generate_batch(show_progress=False)
+
+    def test_catalogue_atoms_reach_skeletons(self):
+        from dunedog.models.atoms import AtomSource
+        _, skeletons = self._batch()
+        atoms = [a for sk in skeletons for a in sk.atoms]
+        curated = [a for a in atoms if a.source == AtomSource.CATALOGUE]
+        assert len(curated) >= len(atoms) // 3
+        assert all(a.metadata.get("evoked_by") for a in curated)
+
+    def test_coined_words_are_few_and_defined(self):
+        from dunedog.models.atoms import AtomSource
+        config, skeletons = self._batch()
+        for sk in skeletons:
+            assert len(sk.primordial_source.neologisms) <= config.crystallization.max_neologisms
+            for atom in sk.atoms:
+                if atom.source == AtomSource.NEOLOGISM:
+                    assert atom.metadata["definition"]
+
+    def test_no_atom_plays_two_roles(self):
+        _, skeletons = self._batch()
+        for sk in skeletons:
+            roles = list(sk.spread_positions.values())
+            assert len(roles) == len(set(roles))
+
+    def test_coinages_are_not_slices_of_each_other(self):
+        from dunedog.models.results import Neologism
+        picked = StoryBatchGenerator._pick_coinages(
+            [Neologism(t, 1.0) for t in ["inet", "netf", "etfe", "twun", "wuny", "uads"]], 3)
+        assert [n.text for n in picked] == ["inet", "twun", "uads"]

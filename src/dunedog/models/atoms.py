@@ -26,6 +26,13 @@ class AtomSource(enum.Enum):
     EVOLVED = "evolved"
 
 
+# Tags that describe what kind of word an atom is rather than what it means.
+# They are shared by almost every chaos-derived atom, so they carry no theme.
+GENERIC_TAGS = frozenset(
+    {c.value for c in AtomCategory} | {"noun", "verb", "adj", "adv"}
+)
+
+
 @dataclass
 class StoryAtom:
     """A single narrative element."""

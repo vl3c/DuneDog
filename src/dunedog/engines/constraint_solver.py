@@ -7,6 +7,7 @@ import random
 from pathlib import Path
 
 from dunedog.catalogues.loader import AtomCatalogue
+from dunedog.models.atoms import GENERIC_TAGS, StoryAtom
 from dunedog.models.skeleton import StorySkeleton
 from dunedog.models.validation import ValidationResult
 from dunedog.world_rules.engine import WorldRulesEngine
@@ -59,7 +60,7 @@ class WorldConstraintSolver:
     def calculate_coherence_score(self, skeleton: StorySkeleton) -> float:
         """Calculate a coherence score in the range 0.0 -- 1.0.
 
-        The score is assembled from four factors:
+        The score is assembled from five factors:
 
         1. **Affinity score** (0 -- 0.3): average pairwise affinity
            between atoms, looked up in the catalogue, normalized to the
@@ -72,8 +73,18 @@ class WorldConstraintSolver:
            sequence follows high-probability transitions from
            ``beat_transitions.json``.
 
-        4. **Thematic consistency** (0 -- 0.4): proportion of atom pairs
-           sharing at least one tag.
+        4. **Thematic consistency** (0 -- 0.2): proportion of atom pairs
+           sharing at least one *meaningful* tag.  Category and
+           part-of-speech tags ("object", "noun") are ignored: every pair
+           of chaos words shares them, which used to make a pile of random
+           nouns score as a perfectly themed story.
+
+        5. **Cast completeness** (0 -- 0.2): how many different kinds of
+           atom the skeleton holds.  A story wants someone, somewhere,
+           something at stake; five objects are not a story.
+
+        Repeated atoms count once, so a skeleton cannot raise its score
+        by agreeing with itself.
 
         The final value is clamped to [0.0, 1.0].
         """
@@ -82,7 +93,9 @@ class WorldConstraintSolver:
         beat_flow = self._beat_flow_score(skeleton)
         thematic = self._thematic_consistency(skeleton)
 
-        raw = affinity + penalty + beat_flow + thematic
+        cast = self._cast_completeness(skeleton)
+
+        raw = affinity + penalty + beat_flow + thematic + cast
         return max(0.0, min(1.0, raw))
 
     def score_and_update(self, skeleton: StorySkeleton) -> StorySkeleton:
@@ -97,7 +110,7 @@ class WorldConstraintSolver:
 
     def _affinity_score(self, skeleton: StorySkeleton) -> float:
         """Average pairwise affinity, mapped to 0 -- 0.3."""
-        atoms = skeleton.atoms
+        atoms = self._distinct(skeleton.atoms)
         if len(atoms) < 2:
             return 0.15  # neutral when there's nothing to compare
 
@@ -141,20 +154,33 @@ class WorldConstraintSolver:
         return 0.3 * avg_prob
 
     def _thematic_consistency(self, skeleton: StorySkeleton) -> float:
-        """Proportion of atom pairs sharing at least one tag, mapped to 0 -- 0.4."""
-        atoms = skeleton.atoms
+        """Proportion of atom pairs sharing a meaningful tag, mapped to 0 -- 0.2."""
+        atoms = self._distinct(skeleton.atoms)
         if len(atoms) < 2:
-            return 0.2
+            return 0.1
 
         shared = 0
         total = 0
         for i in range(len(atoms)):
-            tags_i = set(atoms[i].tags)
+            tags_i = set(atoms[i].tags) - GENERIC_TAGS
             for j in range(i + 1, len(atoms)):
-                tags_j = set(atoms[j].tags)
+                tags_j = set(atoms[j].tags) - GENERIC_TAGS
                 if tags_i & tags_j:
                     shared += 1
                 total += 1
 
         ratio = shared / total if total else 0.0
-        return 0.4 * ratio
+        return 0.2 * ratio
+
+    def _cast_completeness(self, skeleton: StorySkeleton) -> float:
+        """Distinct atom categories present (4 or more is full), mapped to 0 -- 0.2."""
+        kinds = {a.category for a in skeleton.atoms}
+        return 0.2 * min(len(kinds), 4) / 4
+
+    @staticmethod
+    def _distinct(atoms: list[StoryAtom]) -> list[StoryAtom]:
+        """Atoms with repeats (by name) removed."""
+        seen: dict[str, StoryAtom] = {}
+        for atom in atoms:
+            seen.setdefault(atom.name, atom)
+        return list(seen.values())

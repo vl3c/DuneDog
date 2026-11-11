@@ -37,6 +37,7 @@ class ChaosConfig(BaseModel):
 class CrystallizationConfig(BaseModel):
     """Configuration for crystallization."""
     enable_neologisms: bool = True
+    max_neologisms: int = 3  # only the most pronounceable coinages become atoms
     similarity_threshold: float = 0.6
     max_atoms_per_category: int = 10
 
@@ -60,6 +61,7 @@ class EvolutionConfig(BaseModel):
     crossover_rate: float = 0.7
     tournament_size: int = 3
     wild_card_rate: float = 0.05
+    novelty_weight: float = 0.3  # fitness = coherence + novelty_weight * novelty
 
 
 class LLMConfig(BaseModel):
@@ -68,7 +70,7 @@ class LLMConfig(BaseModel):
     model: str = ""
     api_key: SecretStr = SecretStr("")
     story_lines: int = 20
-    max_stories_for_llm: int = 20
+    max_stories_for_llm: int = 6
     synthesis_strategy: str = ""  # empty = let LLM choose
     temperature: float = 0.8
 
@@ -87,19 +89,21 @@ _QUICK_OVERRIDES: dict[str, Any] = {
 _DEEP_OVERRIDES: dict[str, Any] = {
     "chaos": {"use_letter_soup": True, "use_dictionary": True},
     "crystallization": {"enable_neologisms": True},
-    "engines": {"use_tarot": True, "use_markov": True, "use_constraint_solver": True},
+    # An empty spread_types list means "draw from every spread".
+    "engines": {"use_tarot": True, "use_markov": True, "use_constraint_solver": True, "spread_types": []},
     "evolution": {"enabled": True, "generations": 5, "population_size": 50},
     "skeletons_to_generate": 200,
-    "llm": {"max_stories_for_llm": 20},
+    "llm": {"max_stories_for_llm": 6},
 }
 
 _EXPERIMENTAL_OVERRIDES: dict[str, Any] = {
     "chaos": {"use_letter_soup": True, "use_dictionary": True, "soup_length": 400},
     "crystallization": {"enable_neologisms": True},
-    "engines": {"use_tarot": True, "use_markov": True, "use_constraint_solver": True},
+    # An empty spread_types list means "draw from every spread".
+    "engines": {"use_tarot": True, "use_markov": True, "use_constraint_solver": True, "spread_types": []},
     "evolution": {"enabled": True, "generations": 20, "population_size": 100, "mutation_rate": 0.15},
     "skeletons_to_generate": 100,
-    "llm": {"max_stories_for_llm": 20},
+    "llm": {"max_stories_for_llm": 6},
 }
 
 PRESET_CONFIGS: dict[Preset, dict[str, Any]] = {

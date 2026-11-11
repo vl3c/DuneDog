@@ -10,9 +10,9 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskPr
 log = logging.getLogger(__name__)
 
 from dunedog.models.config import GenerationConfig, EvolutionConfig
-from dunedog.models.results import SamplingStrategy, LetterSoupResult, DictionaryChaosResult
+from dunedog.models.results import SamplingStrategy, LetterSoupResult, DictionaryChaosResult, Neologism
 from dunedog.models.skeleton import StorySkeleton, PrimordialSource, GenerationStats
-from dunedog.models.atoms import StoryAtom
+from dunedog.models.atoms import AtomSource, StoryAtom
 from dunedog.utils.seed_manager import SeedManager
 from dunedog.chaos.letter_soup import LetterSoupGenerator
 from dunedog.chaos.dictionary_chaos import DictionaryChaosEngine
@@ -139,12 +139,18 @@ class StoryBatchGenerator:
                 dict_rng, strategy, cfg.chaos.dictionary_word_count, soup_result,
             )
 
-        # Collect all extracted words (including neologisms)
+        # Collect all extracted words.  A soup throws off hundreds of
+        # pronounceable fragments; only the best few are kept as coinages,
+        # otherwise they drown every real word.
+        coined: list[Neologism] = []
+        if soup_result and cfg.crystallization.enable_neologisms:
+            coined = self._pick_coinages(
+                soup_result.neologisms, cfg.crystallization.max_neologisms,
+            )
         all_words: list[str] = []
         if soup_result:
             all_words.extend(soup_result.all_words())
-            if cfg.crystallization.enable_neologisms:
-                all_words.extend(n.text for n in soup_result.neologisms)
+            all_words.extend(n.text for n in coined)
         if chaos_result:
             all_words.extend(chaos_result.combined_words or chaos_result.sampled_words)
 
@@ -154,14 +160,20 @@ class StoryBatchGenerator:
             all_words, crystal_rng, soup_result, chaos_result,
         )
 
-        # Define neologisms
+        # Define the coinages and attach each definition to its atom, so the
+        # meaning travels with the word through evolution and into the prompt.
+        atoms = crystal.all_atoms
         if cfg.crystallization.enable_neologisms and soup_result:
             neo_rng = random.Random(rng.randint(0, 2**63))
             context_words = all_words[:20]
-            for neo in soup_result.neologisms:
+            by_name = {a.name: a for a in atoms}
+            for neo in coined:
                 self._neologism_definer.define(neo, context_words, neo_rng)
-
-        atoms = crystal.all_atoms
+                atom = by_name.get(neo.text.lower())
+                if atom is not None:
+                    atom.source = AtomSource.NEOLOGISM
+                    atom.metadata["definition"] = neo.definition
+                    atom.metadata["part_of_speech"] = neo.part_of_speech
 
         # -- Layer 2: Generative Engines --
         skeleton: StorySkeleton | None = None
@@ -193,13 +205,34 @@ class StoryBatchGenerator:
             letter_soup_raw=soup_result.raw_soup if soup_result else "",
             exact_words=soup_result.exact_words if soup_result else [],
             near_words=[m for _, m, _ in soup_result.near_words] if soup_result else [],
-            neologisms=[n.text for n in soup_result.neologisms] if soup_result else [],
+            neologisms=[n.text for n in coined],
             dictionary_words=chaos_result.sampled_words if chaos_result else [],
             phonetic_mood=soup_result.phonetic_mood if soup_result else "",
         )
         skeleton.seed = rng.randint(0, 2**63)
 
         return skeleton
+
+    @staticmethod
+    def _pick_coinages(neologisms: list[Neologism], limit: int) -> list[Neologism]:
+        """The most pronounceable coinages that are not slices of each other.
+
+        Neologisms come from a sliding window, so the best few are usually
+        the same letters shifted by one ("inet", "netf", "etfe").  Skip any
+        that shares a two-letter run with one already chosen.
+        """
+        chosen: list[Neologism] = []
+        runs: set[str] = set()
+        for neo in neologisms:  # already sorted most pronounceable first
+            if len(chosen) >= limit:
+                break
+            text = neo.text.lower()
+            own = {text[i : i + 2] for i in range(len(text) - 1)}
+            if own & runs:
+                continue
+            runs |= own
+            chosen.append(neo)
+        return chosen
 
     def _evolve(self, skeletons: list[StorySkeleton]) -> list[StorySkeleton]:
         """Run evolutionary refinement on the population."""

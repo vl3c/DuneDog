@@ -5,7 +5,7 @@ import asyncio
 import pytest
 
 from dunedog.llm.provider import LLMProvider, LLMError, create_provider, DEFAULT_MODELS
-from dunedog.llm.synthesizer import StorySynthesizer, SynthesizedStory
+from dunedog.llm.synthesizer import StorySynthesizer, SynthesizedStory, select_diverse
 from dunedog.models.atoms import StoryAtom, AtomCategory, AtomSource
 from dunedog.models.config import LLMConfig
 from dunedog.models.skeleton import StorySkeleton, GenerationStats
@@ -106,6 +106,51 @@ class TestStorySynthesizer:
         assert "enigmatic" in prompt
         assert "journey" in prompt
 
+    def test_build_prompt_carries_roles_definitions_and_disruptions(self):
+        """The prompt keeps what the pipeline learned, not just atom names."""
+        synth = StorySynthesizer(MockLLMProvider(""))
+        skeleton = _make_skeleton(
+            atoms=[
+                StoryAtom("the bone-singer", AtomCategory.AGENT, AtomSource.CATALOGUE,
+                          ["ritual"], metadata={"evoked_by": "oboe"}),
+                StoryAtom("snee", AtomCategory.OBJECT, AtomSource.NEOLOGISM, ["object", "noun"],
+                          metadata={"definition": "the residue left behind after rain"}),
+            ],
+            spread_positions={"The Call": "the bone-singer"},
+            theme_tags=["ritual", "object", "noun"],
+            disruptions=["The moon is now missing from the sky"],
+        )
+
+        prompt = synth.build_prompt([skeleton])
+
+        assert "The Call (what summons the hero to adventure): the bone-singer" in prompt
+        assert '"oboe"' in prompt
+        assert "the residue left behind after rain" in prompt
+        assert "The moon is now missing from the sky" in prompt
+        assert "Themes: ritual\n" in prompt  # generic tags are not themes
+        assert "PREMISE:" in prompt
+
+    def test_build_prompt_is_deterministic_and_states_world_laws(self):
+        synth = StorySynthesizer(MockLLMProvider(""))
+        skeleton = _make_skeleton(atoms=[
+            StoryAtom("the cartographer", AtomCategory.AGENT, AtomSource.CATALOGUE, ["cartography"]),
+        ])
+        prompt = synth.build_prompt([skeleton])
+        assert prompt == synth.build_prompt([skeleton])
+        assert "LAWS OF THIS WORLD" in prompt
+        # A law triggered by an atom's tag is always among those chosen.
+        assert "Mapmakers always get lost" in synth.world_laws([skeleton])
+
+    def test_parse_response_extracts_premise(self):
+        synth = StorySynthesizer(MockLLMProvider(""))
+        stories = synth.parse_response(
+            "STRATEGY: BRAIDED\n---\nTITLE: Salt\n"
+            "PREMISE: A diver wants her name back, but the sea keeps it.\n"
+            "She went down at dusk.\n---\n"
+        )
+        assert stories[0].premise == "A diver wants her name back, but the sea keeps it."
+        assert stories[0].content == "She went down at dusk."
+
     def test_parse_response_extracts_stories(self):
         """parse_response should extract title and content from formatted text."""
         provider = MockLLMProvider("")
@@ -171,3 +216,30 @@ class TestStorySynthesizer:
         assert "desert" in stories[0].content
         assert stories[1].title == "Echo of Bells"
         assert stories[0].strategy == "BRAIDED"
+
+
+class TestSelectDiverse:
+    """select_diverse should prefer good skeletons that differ from each other."""
+
+    @staticmethod
+    def _sk(names, score):
+        return StorySkeleton(
+            atoms=[StoryAtom(n, AtomCategory.OBJECT, AtomSource.CATALOGUE) for n in names],
+            stats=GenerationStats(coherence_score=score),
+        )
+
+    def test_skips_near_duplicates(self):
+        best = self._sk(["a", "b", "c"], 0.9)
+        clone = self._sk(["a", "b", "c"], 0.89)
+        different = self._sk(["x", "y", "z"], 0.6)
+        assert select_diverse([best, clone, different], 2) == [best, different]
+
+    def test_best_skeleton_always_first(self):
+        sks = [self._sk(["a"], 0.2), self._sk(["b"], 0.8), self._sk(["c"], 0.5)]
+        assert select_diverse(sks, 3)[0] is sks[1]
+
+    def test_handles_small_and_empty_inputs(self):
+        only = self._sk(["a"], 0.5)
+        assert select_diverse([], 3) == []
+        assert select_diverse([only], 0) == []
+        assert select_diverse([only], 5) == [only]

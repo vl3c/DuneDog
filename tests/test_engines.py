@@ -145,6 +145,48 @@ class TestWorldConstraintSolver:
 # ------------------------------------------------------------------ #
 
 
+class TestCoherenceMeansSomething:
+    """The score must not reward word-class sameness or self-agreement."""
+
+    @staticmethod
+    def _atom(name, category, tags):
+        from dunedog.models.atoms import AtomSource, StoryAtom
+        return StoryAtom(name, category, AtomSource.DICTIONARY, tags)
+
+    def test_generic_tags_are_not_a_theme(self, catalogue):
+        from dunedog.models.atoms import AtomCategory
+        solver = WorldConstraintSolver(catalogue=catalogue)
+        nouns = StorySkeleton(atoms=[
+            self._atom("oboe", AtomCategory.OBJECT, ["object", "noun"]),
+            self._atom("liter", AtomCategory.OBJECT, ["object", "noun"]),
+        ])
+        themed = StorySkeleton(atoms=[
+            self._atom("oboe", AtomCategory.OBJECT, ["object", "noun", "music"]),
+            self._atom("choir", AtomCategory.OBJECT, ["object", "noun", "music"]),
+        ])
+        assert solver._thematic_consistency(nouns) == 0.0
+        assert solver._thematic_consistency(themed) > 0.0
+
+    def test_repeating_an_atom_does_not_raise_the_score(self, catalogue):
+        from dunedog.models.atoms import AtomCategory
+        solver = WorldConstraintSolver(catalogue=catalogue)
+        a = self._atom("oboe", AtomCategory.OBJECT, ["music"])
+        b = self._atom("the forest", AtomCategory.LOCATION, ["nature"])
+        once = solver.calculate_coherence_score(StorySkeleton(atoms=[a, b]))
+        thrice = solver.calculate_coherence_score(StorySkeleton(atoms=[a, a, a, b]))
+        assert thrice == pytest.approx(once)
+
+    def test_varied_cast_beats_a_pile_of_objects(self, catalogue):
+        from dunedog.models.atoms import AtomCategory as C
+        solver = WorldConstraintSolver(catalogue=catalogue)
+        pile = StorySkeleton(atoms=[self._atom(f"thing{i}", C.OBJECT, [f"t{i}"]) for i in range(4)])
+        cast = StorySkeleton(atoms=[
+            self._atom("someone", C.AGENT, ["t0"]), self._atom("somewhere", C.LOCATION, ["t1"]),
+            self._atom("a debt", C.TENSION, ["t2"]), self._atom("a key", C.OBJECT, ["t3"]),
+        ])
+        assert solver.calculate_coherence_score(cast) > solver.calculate_coherence_score(pile)
+
+
 class TestStoryEvolutionEngine:
     """Tests for StoryEvolutionEngine."""
 
