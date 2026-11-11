@@ -171,6 +171,11 @@ class TestStorySynthesizer:
         assert "Shape:" not in synth.build_prompt([tarot_only])
         assert "Shape: OPENING -> RISING_ACTION" in synth.build_prompt([_make_skeleton()])
 
+    def test_story_count_is_stated_exactly(self):
+        synth = StorySynthesizer(MockLLMProvider(""), LLMConfig(story_count=3))
+        assert "Write exactly 3 interconnected" in synth.build_prompt([_make_skeleton()])
+        assert "Write 2-3 interconnected" in StorySynthesizer(MockLLMProvider("")).build_prompt([_make_skeleton()])
+
     def test_parse_response_extracts_stories(self):
         """parse_response should extract title and content from formatted text."""
         provider = MockLLMProvider("")

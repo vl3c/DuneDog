@@ -194,6 +194,7 @@ class StorySynthesizer:
         response = await self._provider.complete(
             messages,
             temperature=self._config.temperature,
+            **({"effort": self._config.effort} if self._config.effort else {}),
         )
         log.info("LLM response received (%d chars)", len(response))
 
@@ -297,7 +298,9 @@ class StorySynthesizer:
             strat_desc = "\n".join(f"- {k}: {v}" for k, v in SYNTHESIS_STRATEGIES.items())
             lines.append(f"Choose the best interconnection strategy from:\n{strat_desc}")
 
-        lines.append("\nWrite 2-3 interconnected short stories, each about "
+        count = self._config.story_count
+        how_many = f"exactly {count}" if count else "2-3"
+        lines.append(f"\nWrite {how_many} interconnected short stories, each about "
                      f"{max_lines} sentences long.")
         lines.append("- Use only the elements that make a story stronger, and leave at least half out. "
                      "Never mention an element just to prove you used it. Blend seeds freely.")

@@ -70,6 +70,11 @@ dunedog soup --length 200 --count 3 --seed 42
 
 "Sent to LLM" skeletons are chosen for diversity, not taken from the top of the ranking. Override the count with `--stories-for-llm`.
 
+### Story options
+
+- `--story-count N` asks for exactly N stories (default: the LLM writes 2-3).
+- `--effort low|medium|high|xhigh|max` sets reasoning effort on the `anthropic` provider (default: the model's own).
+
 ### LLM Providers
 
 Set your API key via environment variable or `--api-key`:
@@ -77,7 +82,7 @@ Set your API key via environment variable or `--api-key`:
 | Provider | Env Variable | Example Model |
 |---|---|---|
 | `openai` | `OPENAI_API_KEY` | `gpt-4o` |
-| `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-5-20250929` |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
 | `openrouter` | `OPENROUTER_API_KEY` | `google/gemini-3-flash-preview` |
 | `chatgpt` | `CHATGPT_TOKEN` | `gpt-4o` |
 
@@ -96,7 +101,7 @@ The same seed always produces identical skeletons. All randomness flows through 
 ## Testing
 
 ```bash
-pytest tests/ -v         # 340 tests, ~30s
+pytest tests/ -v         # 344 tests, ~30s
 ```
 
 ## License

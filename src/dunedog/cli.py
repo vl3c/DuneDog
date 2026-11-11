@@ -47,6 +47,8 @@ def _build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--api-key", type=str, default=None, help="API key (prefer env var; visible in process list)")
     gen.add_argument("--story-lines", type=_bounded_int(1, 200), default=20, help="Approximate sentences per story (1-200, default 20)")
     gen.add_argument("--stories-for-llm", type=_bounded_int(1, 20), default=None, help="Max skeletons sent to LLM (1-20, default: the preset's value)")
+    gen.add_argument("--story-count", type=_bounded_int(1, 10), default=None, help="Exact number of stories to write (default: the LLM writes 2-3)")
+    gen.add_argument("--effort", type=str, default=None, choices=["low", "medium", "high", "xhigh", "max"], help="Reasoning effort (anthropic provider only; default: the model's own)")
     gen.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     gen.add_argument("--no-llm", action="store_true", help="Skip LLM synthesis, export skeletons only")
 
@@ -104,6 +106,9 @@ def cmd_generate(args: argparse.Namespace) -> None:
     config.llm.story_lines = args.story_lines
     if args.stories_for_llm is not None:
         config.llm.max_stories_for_llm = args.stories_for_llm
+    config.llm.story_count = args.story_count
+    if args.effort:
+        config.llm.effort = args.effort
 
     if args.provider:
         config.llm.provider = args.provider

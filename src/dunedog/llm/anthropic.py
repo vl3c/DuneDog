@@ -1,9 +1,16 @@
 """Anthropic LLM provider."""
 from __future__ import annotations
 
+import logging
+
 import httpx
 
-from .provider import DEFAULT_TIMEOUT, LLMError, LLMProvider
+from .provider import LLMError, LLMProvider
+
+log = logging.getLogger(__name__)
+
+# Thinking models can take minutes on one request at high effort.
+ANTHROPIC_TIMEOUT = httpx.Timeout(connect=10.0, read=900.0, write=30.0, pool=10.0)
 
 
 class AnthropicProvider(LLMProvider):
@@ -29,23 +36,47 @@ class AnthropicProvider(LLMProvider):
         body: dict = {
             "model": self.model,
             "messages": non_system,
+            # max_tokens covers thinking as well as the stories.
             "max_tokens": kwargs.get(
-                "max_tokens", self.kwargs.get("max_tokens", 4096)
+                "max_tokens", self.kwargs.get("max_tokens", 16000)
             ),
         }
         if system_content:
             body["system"] = system_content
+        # Current models take no sampling parameters (temperature is
+        # rejected); depth is set with effort instead.
+        effort = kwargs.get("effort") or self.kwargs.get("effort")
+        if effort:
+            body["output_config"] = {"effort": effort}
 
         try:
-            async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=ANTHROPIC_TIMEOUT) as client:
                 resp = await client.post(self.API_URL, headers=headers, json=body)
                 resp.raise_for_status()
                 data = resp.json()
-                return data["content"][0]["text"]
         except httpx.HTTPStatusError as exc:
-            body = exc.response.text[:500]
+            detail = exc.response.text[:500]
             raise LLMError(
-                f"Anthropic API returned {exc.response.status_code}: {body}"
+                f"Anthropic API returned {exc.response.status_code}: {detail}"
             ) from exc
-        except (httpx.HTTPError, KeyError, IndexError) as exc:
+        except httpx.HTTPError as exc:
+            raise LLMError(f"Anthropic request failed: {exc}") from exc
+
+        try:
+            stop_reason = data.get("stop_reason")
+            if stop_reason == "refusal":
+                category = (data.get("stop_details") or {}).get("category")
+                raise LLMError(f"Anthropic model declined the request (category: {category})")
+            # The response is a list of blocks; thinking blocks come first on
+            # models that think, so take the text blocks rather than block 0.
+            text = "".join(
+                block.get("text", "") for block in data["content"]
+                if block.get("type", "text") == "text"
+            )
+            if not text:
+                raise LLMError(f"Anthropic response had no text (stop_reason: {stop_reason})")
+            if stop_reason == "max_tokens":
+                log.warning("Anthropic response was cut off at max_tokens; the last story may be incomplete")
+            return text
+        except (KeyError, TypeError, AttributeError) as exc:
             raise LLMError(f"Anthropic request failed: {exc}") from exc

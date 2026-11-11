@@ -38,7 +38,6 @@ class CrystallizationConfig(BaseModel):
     """Configuration for crystallization."""
     enable_neologisms: bool = True
     max_neologisms: int = 3  # only the most pronounceable coinages become atoms
-    max_atoms_per_category: int = 10
 
 
 class EngineConfig(BaseModel):
@@ -72,6 +71,8 @@ class LLMConfig(BaseModel):
     max_stories_for_llm: int = 6
     synthesis_strategy: str = ""  # empty = let LLM choose
     temperature: float = 0.8
+    effort: str = ""  # low | medium | high | xhigh | max; empty = provider default
+    story_count: int | None = None  # exact number of stories; None = let the LLM write 2-3
 
 
 # -- Preset definitions --
