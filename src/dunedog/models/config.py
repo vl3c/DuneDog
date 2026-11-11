@@ -69,7 +69,7 @@ class LLMConfig(BaseModel):
     provider: str = "anthropic"
     model: str = ""
     api_key: SecretStr = SecretStr("")
-    story_lines: int = 20
+    story_lines: int = 20  # approximate sentences per story
     max_stories_for_llm: int = 6
     synthesis_strategy: str = ""  # empty = let LLM choose
     temperature: float = 0.8

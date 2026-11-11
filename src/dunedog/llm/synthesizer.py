@@ -259,10 +259,12 @@ class StorySynthesizer:
         if themes:
             lines.append(f"Themes: {', '.join(themes)}")
 
-        if sk.beats:
-            # Evolution splices beat lists into long, repetitive strings;
-            # only the order in which movements first appear is a usable shape.
-            shape = list(dict.fromkeys(sk.beats))
+        # Beats are Markov beat types (OPENING, CLIMAX...) or, when the Markov
+        # engine is off, the tarot fragments, which would only repeat the
+        # reading.  Evolution splices beat lists into long, repetitive
+        # strings; only the order in which movements first appear is a shape.
+        shape = list(dict.fromkeys(b for b in sk.beats if b.isupper()))
+        if shape:
             lines.append(f"Shape: {' -> '.join(shape)}")
 
         lines.append("")
@@ -338,20 +340,22 @@ class StorySynthesizer:
             if not section:
                 continue
 
-            title_match = re.search(r"TITLE:\s*(.+)", section)
+            title_match = re.search(r"TITLE:\**[ \t]*(.+)", section)
             if not title_match:
                 continue
 
-            title = title_match.group(1).strip()
+            title = title_match.group(1).strip().strip("*").strip()
             # Content is everything after the TITLE line
             content_start = title_match.end()
             content = section[content_start:].strip()
+            content = re.sub(r"\n?-{3,}\s*$", "", content).strip()
 
-            # An optional PREMISE line directly under the title
+            # An optional PREMISE line directly under the title.  Tolerates
+            # "Premise:" and bold markdown; never reaches past its own line.
             premise = ""
-            premise_match = re.match(r"PREMISE:\s*(.+)", content)
+            premise_match = re.match(r"\**[ \t]*PREMISE[ \t]*:\**[ \t]*(.*)", content, re.IGNORECASE)
             if premise_match:
-                premise = premise_match.group(1).strip()
+                premise = premise_match.group(1).strip().strip("*").strip()
                 content = content[premise_match.end():].strip()
 
             if content:

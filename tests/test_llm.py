@@ -151,6 +151,26 @@ class TestStorySynthesizer:
         assert stories[0].premise == "A diver wants her name back, but the sea keeps it."
         assert stories[0].content == "She went down at dusk."
 
+    def test_parse_response_tolerates_format_drift(self):
+        synth = StorySynthesizer(MockLLMProvider(""))
+        stories = synth.parse_response(
+            "STRATEGY: BRAIDED\n---\n"
+            "**TITLE: Salt**\n**Premise:** A diver wants her name back.\n\nShe went down.\n---\n"
+            "TITLE: Ash\nPREMISE:\nHe stayed.\nThe fire did not.\n---\n"
+            "TITLE: Tin\nNo premise here.\n---"
+        )
+        assert [(s.title, s.premise, s.content) for s in stories] == [
+            ("Salt", "A diver wants her name back.", "She went down."),
+            ("Ash", "", "He stayed.\nThe fire did not."),
+            ("Tin", "", "No premise here."),
+        ]
+
+    def test_shape_line_only_for_markov_beats(self):
+        synth = StorySynthesizer(MockLLMProvider(""))
+        tarot_only = _make_skeleton(beats=["The wanderer — what summons the hero to adventure."])
+        assert "Shape:" not in synth.build_prompt([tarot_only])
+        assert "Shape: OPENING -> RISING_ACTION" in synth.build_prompt([_make_skeleton()])
+
     def test_parse_response_extracts_stories(self):
         """parse_response should extract title and content from formatted text."""
         provider = MockLLMProvider("")

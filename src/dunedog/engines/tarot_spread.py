@@ -84,7 +84,10 @@ class TarotSpreadEngine:
 
             # Step 4: fallback — sample from catalogue
             if chosen is None:
-                for cat in preferred or set(AtomCategory):
+                # Fixed order: iterating a set of enum members varies between
+                # processes, which would break same-seed reproducibility.
+                wanted = [AtomCategory(c) for c in pos.get("preferred_categories", [])]
+                for cat in wanted or list(AtomCategory):
                     sampled = self._catalogue.sample_weighted(cat, rng, n=1)
                     if sampled:
                         chosen = sampled[0]

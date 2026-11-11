@@ -96,7 +96,7 @@ The same seed always produces identical skeletons. All randomness flows through 
 ## Testing
 
 ```bash
-pytest tests/ -v         # 336 tests, ~30s
+pytest tests/ -v         # 340 tests, ~30s
 ```
 
 ## License

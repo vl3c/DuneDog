@@ -252,12 +252,34 @@ class StoryEvolutionEngine:
             indices_a = rng.sample(range(len(atoms_a)), min(n_swap, len(atoms_a)))
             indices_b = rng.sample(range(len(atoms_b)), min(n_swap, len(atoms_b)))
 
+            names_a = {a.name for a in atoms_a}
+            names_b = {b.name for b in atoms_b}
+            handover_a: dict[str, str] = {}  # outgoing atom -> incoming atom
+            handover_b: dict[str, str] = {}
+
             for ia, ib in zip(indices_a, indices_b):
-                # The incoming atom takes over the spread position of the
-                # atom it replaces, so the reading survives breeding.
-                self._rename_in_spread(child_a, atoms_a[ia].name, atoms_b[ib].name)
-                self._rename_in_spread(child_b, atoms_b[ib].name, atoms_a[ia].name)
-                atoms_a[ia], atoms_b[ib] = atoms_b[ib], atoms_a[ia]
+                out_a, out_b = atoms_a[ia], atoms_b[ib]
+                # Skip a swap that would give a child an atom it already
+                # holds: the duplicate would be dropped and the cast shrink.
+                if out_b.name in names_a or out_a.name in names_b:
+                    continue
+                atoms_a[ia], atoms_b[ib] = out_b, out_a
+                names_a = (names_a - {out_a.name}) | {out_b.name}
+                names_b = (names_b - {out_b.name}) | {out_a.name}
+                handover_a[out_a.name] = out_b.name
+                handover_b[out_b.name] = out_a.name
+
+            # The incoming atom takes over the spread position of the atom it
+            # replaces, so the reading survives breeding.  Applied in one pass:
+            # renaming pair by pair lets one rename feed the next.
+            child_a.spread_positions = {
+                pos: handover_a.get(name, name)
+                for pos, name in child_a.spread_positions.items()
+            }
+            child_b.spread_positions = {
+                pos: handover_b.get(name, name)
+                for pos, name in child_b.spread_positions.items()
+            }
 
             child_a.atoms = self._unique_atoms(atoms_a)
             child_b.atoms = self._unique_atoms(atoms_b)
@@ -403,6 +425,7 @@ class StoryEvolutionEngine:
         if rng.random() < rate:
             skeleton.tone = rng.choice(_TONES)
 
+        skeleton.theme_tags = self._themes_of(skeleton)
         return skeleton
 
     # ------------------------------------------------------------------
@@ -487,6 +510,7 @@ class StoryEvolutionEngine:
                     for idx, new_atom in zip(chosen_indices, rotated):
                         skeleton.atoms[idx] = new_atom
 
+        skeleton.theme_tags = self._themes_of(skeleton)
         return skeleton
 
     # ------------------------------------------------------------------

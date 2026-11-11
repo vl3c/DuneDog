@@ -160,11 +160,16 @@ class TestCreativeMaterial:
                 if atom.source == AtomSource.NEOLOGISM:
                     assert atom.metadata["definition"]
 
-    def test_no_atom_plays_two_roles(self):
-        _, skeletons = self._batch()
+    def test_evolved_readings_stay_intact(self):
+        """After evolution no atom plays two roles and every role has its atom."""
+        config = GenerationConfig.from_preset("deep", seed=7, skeletons_to_generate=10)
+        config.evolution.generations = 6
+        skeletons = StoryBatchGenerator(config).generate_batch(show_progress=False)
         for sk in skeletons:
             roles = list(sk.spread_positions.values())
             assert len(roles) == len(set(roles))
+            assert set(roles) <= {a.name for a in sk.atoms}
+        assert sum(len(sk.spread_positions) for sk in skeletons) / len(skeletons) >= 4
 
     def test_coinages_are_not_slices_of_each_other(self):
         from dunedog.models.results import Neologism

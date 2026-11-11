@@ -172,8 +172,38 @@ class TestCrossover:
         engine = StoryEvolutionEngine()
         pop = _make_population()
         for seed in range(20):
-            child_a, _ = engine.crossover(pop[0], pop[1], random.Random(seed))
+            parent = pop[0]
+            child_a, _ = engine.crossover(parent, pop[1], random.Random(seed))
             assert set(child_a.spread_positions) == {"past", "present"}
+            # Atoms keep their slot index through a swap, so the atom now in
+            # the old holder's slot must be the one holding its position.
+            for pos, old_name in parent.spread_positions.items():
+                slot = [a.name for a in parent.atoms].index(old_name)
+                assert child_a.spread_positions[pos] == child_a.atoms[slot].name
+
+    def test_crossover_with_overlapping_parents_keeps_reading_and_cast(self):
+        """Parents that share atoms must not lose roles or shrink (chained renames)."""
+        engine = StoryEvolutionEngine()
+
+        def make(names):
+            return StorySkeleton(
+                atoms=[StoryAtom(n, AtomCategory.OBJECT, AtomSource.CATALOGUE, [n]) for n in names],
+                beats=["OPENING", "CLIMAX", "RESOLUTION"],
+                spread_positions={f"P{i}": n for i, n in enumerate(names)},
+            )
+
+        for seed in range(50):
+            a, b = make(["x", "y", "z"]), make(["y", "w", "x"])
+            for child in engine.crossover(a, b, random.Random(seed)):
+                assert len(child.atoms) == 3
+                assert len(child.spread_positions) == 3
+                assert sorted(child.spread_positions.values()) == sorted(x.name for x in child.atoms)
+
+    def test_mutation_keeps_themes_in_step_with_atoms(self):
+        engine = StoryEvolutionEngine()
+        for seed in range(10):
+            sk = engine.mutate(_make_population()[0], random.Random(seed), rate=1.0)
+            assert set(sk.theme_tags) == {t for a in sk.atoms for t in a.tags}
 
     def test_copy_is_independent_of_parent(self):
         engine = StoryEvolutionEngine()

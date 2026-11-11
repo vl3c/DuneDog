@@ -45,7 +45,7 @@ def _build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--provider", type=str, default=None, choices=["openai", "anthropic", "openrouter", "chatgpt"])
     gen.add_argument("--model", type=str, default=None, help="Model name (provider-specific)")
     gen.add_argument("--api-key", type=str, default=None, help="API key (prefer env var; visible in process list)")
-    gen.add_argument("--story-lines", type=_bounded_int(1, 200), default=20, help="Max lines per story (1-200, default 20)")
+    gen.add_argument("--story-lines", type=_bounded_int(1, 200), default=20, help="Approximate sentences per story (1-200, default 20)")
     gen.add_argument("--stories-for-llm", type=_bounded_int(1, 20), default=None, help="Max skeletons sent to LLM (1-20, default: the preset's value)")
     gen.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     gen.add_argument("--no-llm", action="store_true", help="Skip LLM synthesis, export skeletons only")
@@ -254,7 +254,8 @@ def cmd_demo(args: argparse.Namespace) -> None:
             console.print("\n[bold]Synthesizing story...[/bold]")
             stories = asyncio.run(synthesizer.synthesize([skeleton]))
             for story in stories:
-                console.print(Panel(Text(story.content), title=Text(story.title), border_style="blue"))
+                body = (f"{story.premise}\n\n" if story.premise else "") + story.content
+                console.print(Panel(Text(body), title=Text(story.title), border_style="blue"))
 
 
 def cmd_soup(args: argparse.Namespace) -> None:
