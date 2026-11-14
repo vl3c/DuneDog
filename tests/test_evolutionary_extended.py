@@ -247,6 +247,18 @@ class TestCrossover:
         casts = {frozenset(a.name for a in s.atoms) for s in result.population}
         assert len(casts) > len(result.population) // 2
 
+    def test_best_skeleton_is_never_lost(self):
+        """Parents compete with their children, so the best coherence never drops."""
+        engine = StoryEvolutionEngine()
+        pop = _make_population(n=12)
+        config = EvolutionConfig(enabled=True, generations=10, population_size=12,
+                                 novelty_weight=0.0)
+        result = engine.evolve(pop, config, random.Random(42))
+        history = result.fitness_history
+        assert len(result.population) == 12
+        assert all(b >= a for a, b in zip(history, history[1:])), history
+        assert result.population[0].coherence_score >= history[-1]
+
     def test_crossover_does_not_modify_parents(self):
         """Crossover must not mutate the parent skeletons."""
         engine = StoryEvolutionEngine()

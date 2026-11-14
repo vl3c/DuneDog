@@ -45,6 +45,7 @@ class SynthesizedStory:
     strategy: str = ""
     premise: str = ""  # the one-line "who wants what, but" the story was written from
     source_skeleton_indices: list[int] = field(default_factory=list)
+    truncated: bool = False  # the response hit the token cap inside this story
 
     def to_dict(self) -> dict:
         return {
@@ -52,6 +53,7 @@ class SynthesizedStory:
             "content": self.content,
             "strategy": self.strategy,
             "premise": self.premise,
+            "truncated": self.truncated,
             "source_skeleton_indices": self.source_skeleton_indices,
         }
 
@@ -200,6 +202,9 @@ class StorySynthesizer:
         log.info("LLM response received (%d chars)", len(response))
 
         stories = self.parse_response(response, strat)
+        if stories and getattr(self._provider, "last_truncated", False):
+            stories[-1].truncated = True
+            log.warning("\"%s\" was cut off at the token cap; raise --max-tokens", stories[-1].title)
         log.info("Parsed %d stories", len(stories))
         for s in stories:
             log.info("  \"%s\" (%d chars, strategy=%s)", s.title, len(s.content), s.strategy)

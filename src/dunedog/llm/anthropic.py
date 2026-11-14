@@ -9,11 +9,12 @@ from .provider import LLMError, LLMProvider
 
 log = logging.getLogger(__name__)
 
-# Thinking models can take minutes on one request at high effort.
-ANTHROPIC_TIMEOUT = httpx.Timeout(connect=10.0, read=900.0, write=30.0, pool=10.0)
+# Thinking models can take minutes on one request at high effort.  The
+# request is not streamed, so nothing arrives until the whole answer is done.
+ANTHROPIC_TIMEOUT = httpx.Timeout(connect=10.0, read=1800.0, write=30.0, pool=10.0)
 
-# Thinking plus three stories at high effort.  The request is not streamed,
-# so keep this well short of the 128K model limit to stay inside the timeout.
+# Thinking plus three stories at high effort.  Without streaming, caps are
+# kept well short of the 128K model limit (the CLI allows up to 64000).
 DEFAULT_MAX_TOKENS = 32000
 
 
@@ -42,9 +43,9 @@ class AnthropicProvider(LLMProvider):
             "messages": non_system,
             # max_tokens covers thinking as well as the stories: at high
             # effort 16000 left too little room and cut the last story off.
-            "max_tokens": kwargs.get("max_tokens") or self.kwargs.get(
-                "max_tokens", DEFAULT_MAX_TOKENS
-            ),
+            "max_tokens": kwargs.get("max_tokens")
+            or self.kwargs.get("max_tokens")
+            or DEFAULT_MAX_TOKENS,
         }
         if system_content:
             body["system"] = system_content
@@ -80,7 +81,8 @@ class AnthropicProvider(LLMProvider):
             )
             if not text:
                 raise LLMError(f"Anthropic response had no text (stop_reason: {stop_reason})")
-            if stop_reason == "max_tokens":
+            self.last_truncated = stop_reason == "max_tokens"
+            if self.last_truncated:
                 log.warning("Anthropic response was cut off at max_tokens; the last story may be incomplete")
             return text
         except (KeyError, TypeError, AttributeError) as exc:

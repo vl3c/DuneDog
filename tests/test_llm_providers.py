@@ -429,3 +429,20 @@ class TestAnthropicMaxTokens:
 
     def test_none_max_tokens_uses_default(self):
         assert self._body(max_tokens=None)["max_tokens"] == 32000
+
+    def test_none_in_provider_kwargs_uses_default(self):
+        provider = AnthropicProvider(api_key="k", model="claude-fable-5-2", max_tokens=None)
+        mock_client = _make_mock_client(_mock_response({"content": [{"type": "text", "text": "ok"}]}))
+        with patch("dunedog.llm.anthropic.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = mock_client
+            asyncio.run(provider.complete([{"role": "user", "content": "Hi"}]))
+        assert mock_client.post.call_args.kwargs["json"]["max_tokens"] == 32000
+
+    def test_cut_off_response_is_flagged(self):
+        provider = AnthropicProvider(api_key="k", model="claude-fable-5-2")
+        mock_client = _make_mock_client(_mock_response(
+            {"content": [{"type": "text", "text": "when it was fin"}], "stop_reason": "max_tokens"}))
+        with patch("dunedog.llm.anthropic.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = mock_client
+            asyncio.run(provider.complete([{"role": "user", "content": "Hi"}]))
+        assert provider.last_truncated

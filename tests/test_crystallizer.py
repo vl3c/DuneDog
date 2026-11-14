@@ -163,6 +163,13 @@ class TestNeologismDefinitions:
                 result = definer.define(neo, ["knife", "river", text, "stone"], random.Random(seed))
                 assert text not in result.definition.split(), (seed, result.definition)
 
+    def test_case_variants_count_as_one_word(self):
+        definer = NeologismDefiner()
+        for seed in range(100):
+            neo = Neologism(text="isot", pronounceability=0.8, phonetic_mood="dreamy")
+            result = definer.define(neo, ["Shed", "shed"], random.Random(seed))
+            assert result.definition.lower().count("shed") <= 1, result.definition
+
     def test_templates_have_no_self_reference_placeholder(self):
         definer = NeologismDefiner()
         for pos, templates in definer._load_templates().items():

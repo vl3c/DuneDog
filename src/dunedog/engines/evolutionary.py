@@ -92,26 +92,18 @@ class StoryEvolutionEngine:
                 if all(atom.name != other.name for other in pool):
                     pool.append(atom)
 
-        for gen in range(config.generations):
-            # Score population
-            for skeleton in population:
-                self._solver.score_and_update(skeleton)
+        population = list(population)
+        size = len(population)
+        for skeleton in population:
+            self._solver.score_and_update(skeleton)
+        fitness = self._fitness(population, config.novelty_weight)
 
-            # Fitness rewards coherence *and* being unlike the rest of the
-            # population; coherence alone breeds a population of clones.
-            fitness = {
-                id(s): s.coherence_score
-                + config.novelty_weight * self.calculate_novelty(s, population)
-                for s in population
-            }
-            population.sort(key=lambda s: fitness[id(s)], reverse=True)
+        for gen in range(config.generations):
             fitness_history.append(max(s.coherence_score for s in population))
 
             # Create offspring
             offspring: list[StorySkeleton] = []
-            n_offspring = len(population) // 2
-
-            for _ in range(n_offspring):
+            while len(offspring) < size:
                 parent_a, parent_b = self.select_parents(
                     population, "tournament", rng,
                     tournament_size=config.tournament_size,
@@ -130,9 +122,18 @@ class StoryEvolutionEngine:
                     child_a = self.inject_wild_card(child_a, rng)
 
                 offspring.extend([child_a, child_b])
+            offspring = offspring[:size]
+            for skeleton in offspring:
+                self._solver.score_and_update(skeleton)
 
-            # Replace worst with offspring
-            population = population[: len(population) - len(offspring)] + offspring
+            # Parents and children compete for the places: the best skeleton
+            # found so far can only be displaced by a fitter one.  Fitness is
+            # coherence *and* being unlike the rest; coherence alone breeds a
+            # population of clones.
+            pool = population + offspring
+            fitness = self._fitness(pool, config.novelty_weight)
+            pool.sort(key=lambda s: fitness[id(s)], reverse=True)
+            population = pool[:size]
 
             # Update generation number
             for s in population:
@@ -149,6 +150,13 @@ class StoryEvolutionEngine:
             generations_run=config.generations,
             fitness_history=fitness_history,
         )
+
+    def _fitness(self, population: list[StorySkeleton], novelty_weight: float) -> dict[int, float]:
+        """Fitness by object id: coherence plus weighted novelty within *population*."""
+        return {
+            id(s): s.coherence_score + novelty_weight * self.calculate_novelty(s, population)
+            for s in population
+        }
 
     # ------------------------------------------------------------------
     # Selection

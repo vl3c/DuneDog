@@ -98,16 +98,15 @@ class NeologismDefiner:
         # learns nothing ("the sound a wras makes").  {context} and {thing}
         # are filled with two different words from the surroundings.
         own = neologism.text.lower()
-        pool = list(dict.fromkeys(w for w in context_words if w.lower() != own))
+        pool = list({w.lower(): w for w in reversed(context_words) if w.lower() != own}.values())[::-1]
         context = rng.choice(pool) if pool else "the unknown"
-        others = [w for w in pool if w != context]
+        others = [w for w in pool if w.lower() != context.lower()]
         thing = rng.choice(others) if others else "something"
 
         pos_templates = templates.get(pos, templates.get("noun", []))
         template = rng.choice(pos_templates)
         definition = (
             template.replace("{thing}", thing)
-            .replace("{word}", thing)  # older template files
             .replace("{mood}", mood)
             .replace("{context}", context)
         )

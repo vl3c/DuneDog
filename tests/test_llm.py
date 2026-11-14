@@ -291,3 +291,11 @@ class TestSynthesizerMaxTokens:
         synth = StorySynthesizer(provider, LLMConfig())
         asyncio.run(synth.synthesize([_make_skeleton()]))
         assert "max_tokens" not in provider.kwargs_seen
+
+    def test_cut_off_last_story_is_marked(self):
+        provider = self._Recorder()
+        provider.last_truncated = True
+        synth = StorySynthesizer(provider, LLMConfig())
+        stories = asyncio.run(synth.synthesize([_make_skeleton()]))
+        assert stories[-1].truncated
+        assert stories[-1].to_dict()["truncated"] is True

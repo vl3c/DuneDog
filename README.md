@@ -16,7 +16,7 @@ The pipeline has four layers:
 - *Tarot Spread* — deals atoms into narrative positions across 5 spread types (Hero's Journey, Three Act, Love Triangle, Mystery, Cosmic). The draw is mostly curated atoms, with raw chaos words and coined words kept as texture.
 - *Markov Chains* — generates beat sequences (13 beat types: OPENING, CRISIS, CLIMAX, etc.)
 - *Constraint Solver* — validates against world rules and scores coherence: atom affinity, beat flow, shared themes and a varied cast. Word-class tags ("noun", "object") do not count as themes, and a repeated atom counts once.
-- *Evolutionary* (optional) — breeds skeletons via selection, crossover, mutation, and wild card injection. Fitness is coherence plus novelty (distance to the nearest other skeletons), so the population does not collapse into clones. Mutation recombines atoms the chaos produced for this run; only wild cards bring in something from outside. An atom swapped in by crossover inherits the role of the atom it replaces.
+- *Evolutionary* (optional) — breeds skeletons via selection, crossover, mutation, and wild card injection. Fitness is coherence plus novelty (distance to the nearest other skeletons), so the population does not collapse into clones. Parents compete with their offspring for places, so the best skeleton is only displaced by a fitter one. Mutation recombines atoms the chaos produced for this run; only wild cards bring in something from outside. An atom swapped in by crossover inherits the role of the atom it replaces.
 
 **Layer 3 — LLM Synthesis.** A small, deliberately *diverse* set of skeletons (good coherence, few shared atoms) is sent to an LLM, which combines them into interconnected narratives using strategies like BRAIDED (parallel stories with thematic echoes), CAUSE_AND_ECHO (one story's ending begins another), RASHOMON (same events from different perspectives), or ANTHOLOGY_FRAME (meta-story containing others).
 
@@ -74,7 +74,7 @@ dunedog soup --length 200 --count 3 --seed 42
 
 - `--story-count N` asks for exactly N stories (default: the LLM writes 2-3).
 - `--effort low|medium|high|xhigh|max` sets reasoning effort on the `anthropic` provider (default: the model's own).
-- `--max-tokens N` caps the response, thinking included (default: the provider's own; 32000 on `anthropic`). Raise it if the last story comes back cut off at high effort.
+- `--max-tokens N` caps the response, thinking included (default: the provider's own; 32000 on `anthropic`, at most 64000). Raise it if the last story comes back cut off at high effort.
 
 ### LLM Providers
 
@@ -102,7 +102,7 @@ The same seed always produces identical skeletons. All randomness flows through 
 ## Testing
 
 ```bash
-pytest tests/ -v         # 344 tests, ~30s
+pytest tests/ -v         # 359 tests, ~30s
 ```
 
 ## License

@@ -49,7 +49,7 @@ def _build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--stories-for-llm", type=_bounded_int(1, 20), default=None, help="Max skeletons sent to LLM (1-20, default: the preset's value)")
     gen.add_argument("--story-count", type=_bounded_int(1, 10), default=None, help="Exact number of stories to write (default: the LLM writes 2-3)")
     gen.add_argument("--effort", type=str, default=None, choices=["low", "medium", "high", "xhigh", "max"], help="Reasoning effort (anthropic provider only; default: the model's own)")
-    gen.add_argument("--max-tokens", type=_bounded_int(1000, 128000), default=None, help="Response token cap, thinking included (1000-128000; default: the provider's own, 32000 for anthropic)")
+    gen.add_argument("--max-tokens", type=_bounded_int(1000, 64000), default=None, help="Response token cap, thinking included (1000-64000; requests are not streamed; default: the provider's own, 32000 for anthropic)")
     gen.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     gen.add_argument("--no-llm", action="store_true", help="Skip LLM synthesis, export skeletons only")
 

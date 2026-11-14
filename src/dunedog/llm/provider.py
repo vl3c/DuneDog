@@ -19,6 +19,8 @@ class LLMProvider(ABC):
         self.api_key = api_key
         self.model = model
         self.kwargs = kwargs
+        # Set by providers that can tell when the output hit the token cap.
+        self.last_truncated = False
 
     def __repr__(self) -> str:
         key_display = "***" if self.api_key else ""

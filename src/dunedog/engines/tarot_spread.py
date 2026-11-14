@@ -7,6 +7,8 @@ import random
 from pathlib import Path
 
 from dunedog.models.atoms import GENERIC_TAGS, AtomCategory, AtomSource, StoryAtom
+from dunedog.models.skeleton import GenerationStats, StorySkeleton
+from dunedog.catalogues.loader import AtomCatalogue
 
 # A soup yields hundreds of raw dictionary words but only a few dozen evoked
 # catalogue atoms and a handful of coinages.  Drawn uniformly, a spread is all
@@ -18,8 +20,6 @@ _SOURCE_SHARE = {
     AtomSource.NEOLOGISM: 0.15,
 }
 _RAW_SHARE = 0.20
-from dunedog.models.skeleton import GenerationStats, StorySkeleton
-from dunedog.catalogues.loader import AtomCatalogue
 
 
 class TarotSpreadEngine:
