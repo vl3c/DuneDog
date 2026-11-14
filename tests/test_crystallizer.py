@@ -150,3 +150,35 @@ class TestNeologismDefiner:
         definer = NeologismDefiner()
         # A word with no matching suffix should default to noun
         assert definer.infer_part_of_speech("glimbor") == "noun"
+
+
+class TestNeologismDefinitions:
+    """A coined word's definition must not lean on the word itself."""
+
+    def test_definition_never_contains_the_word(self):
+        definer = NeologismDefiner()
+        for seed in range(200):
+            for text in ("wras", "isot", "dete", "glimbora"):
+                neo = Neologism(text=text, pronounceability=0.8, phonetic_mood="dreamy")
+                result = definer.define(neo, ["knife", "river", text, "stone"], random.Random(seed))
+                assert text not in result.definition.split(), (seed, result.definition)
+
+    def test_templates_have_no_self_reference_placeholder(self):
+        definer = NeologismDefiner()
+        for pos, templates in definer._load_templates().items():
+            for t in templates:
+                assert "{word}" not in t, (pos, t)
+
+    def test_two_placeholders_get_different_words(self):
+        definer = NeologismDefiner()
+        definer._templates = {"noun": ["between {thing} and {context}"]}
+        neo = Neologism(text="wras", pronounceability=0.8, phonetic_mood="dreamy")
+        result = definer.define(neo, ["knife", "river"], random.Random(1))
+        a, b = result.definition.removeprefix("between ").split(" and ")
+        assert {a, b} == {"knife", "river"}
+
+    def test_short_prefixed_word_is_not_a_verb(self):
+        definer = NeologismDefiner()
+        assert definer.infer_part_of_speech("dete") == "noun"
+        assert definer.infer_part_of_speech("reth") == "noun"
+        assert definer.infer_part_of_speech("unravel") == "verb"

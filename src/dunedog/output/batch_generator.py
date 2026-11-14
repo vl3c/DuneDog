@@ -162,7 +162,7 @@ class StoryBatchGenerator:
         atoms = crystal.all_atoms
         if cfg.crystallization.enable_neologisms and soup_result:
             neo_rng = random.Random(rng.randint(0, 2**63))
-            context_words = all_words[:20]
+            context_words = self._definition_context(atoms, all_words, coined)
             by_name = {a.name: a for a in atoms}
             for neo in coined:
                 self._neologism_definer.define(neo, context_words, neo_rng)
@@ -230,6 +230,23 @@ class StoryBatchGenerator:
             runs |= own
             chosen.append(neo)
         return chosen
+
+    @staticmethod
+    def _definition_context(
+        atoms: list[StoryAtom], all_words: list[str], coined: list[Neologism], limit: int = 20,
+    ) -> list[str]:
+        """Words a coinage's definition may lean on.
+
+        The words that summoned curated atoms come first: they are real,
+        common and already part of this story ("dye", "knife").  Other chaos
+        words follow, minus short fragments ("flo", "ker") and the coinages
+        themselves, so no definition rests on another unexplained word.
+        """
+        coined_names = {n.text.lower() for n in coined}
+        evokers = [a.metadata["evoked_by"] for a in atoms if a.metadata.get("evoked_by")]
+        rest = [w for w in all_words if len(w) >= 4 and w.lower() not in coined_names]
+        words = [w for w in dict.fromkeys(evokers + rest) if w.lower() not in coined_names]
+        return words[:limit]
 
     def _evolve(self, skeletons: list[StorySkeleton]) -> list[StorySkeleton]:
         """Run evolutionary refinement on the population."""

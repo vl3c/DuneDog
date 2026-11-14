@@ -176,3 +176,17 @@ class TestCreativeMaterial:
         picked = StoryBatchGenerator._pick_coinages(
             [Neologism(t, 1.0) for t in ["inet", "netf", "etfe", "twun", "wuny", "uads"]], 3)
         assert [n.text for n in picked] == ["inet", "twun", "uads"]
+
+
+class TestDefinitionContext:
+    def test_evokers_first_then_real_words_without_coinages_or_fragments(self):
+        from dunedog.models.results import Neologism
+        atoms = [
+            StoryAtom("a knife that cuts only lies", AtomCategory.OBJECT, AtomSource.CATALOGUE, ["weapon"],
+                      metadata={"evoked_by": "knife"}),
+            StoryAtom("wras", AtomCategory.OBJECT, AtomSource.NEOLOGISM, []),
+        ]
+        coined = [Neologism(text="wras", pronounceability=0.9)]
+        words = StoryBatchGenerator._definition_context(
+            atoms, ["flo", "wras", "river", "ker", "stone", "river"], coined)
+        assert words == ["knife", "river", "stone"]

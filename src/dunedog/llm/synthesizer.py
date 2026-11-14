@@ -195,6 +195,7 @@ class StorySynthesizer:
             messages,
             temperature=self._config.temperature,
             **({"effort": self._config.effort} if self._config.effort else {}),
+            **({"max_tokens": self._config.max_tokens} if self._config.max_tokens else {}),
         )
         log.info("LLM response received (%d chars)", len(response))
 

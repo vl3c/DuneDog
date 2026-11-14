@@ -410,3 +410,22 @@ class TestCreateProvider:
     def test_custom_model_overrides_default(self):
         p = create_provider("openai", api_key="key", model="gpt-3.5-turbo")
         assert p.model == "gpt-3.5-turbo"
+
+
+class TestAnthropicMaxTokens:
+    def _body(self, **complete_kwargs):
+        provider = AnthropicProvider(api_key="k", model="claude-fable-5-2")
+        mock_client = _make_mock_client(_mock_response({"content": [{"type": "text", "text": "ok"}]}))
+        with patch("dunedog.llm.anthropic.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = mock_client
+            asyncio.run(provider.complete([{"role": "user", "content": "Hi"}], **complete_kwargs))
+        return mock_client.post.call_args.kwargs.get("json") or mock_client.post.call_args[1].get("json")
+
+    def test_default_leaves_room_for_thinking(self):
+        assert self._body(effort="high")["max_tokens"] == 32000
+
+    def test_explicit_max_tokens_wins(self):
+        assert self._body(max_tokens=64000)["max_tokens"] == 64000
+
+    def test_none_max_tokens_uses_default(self):
+        assert self._body(max_tokens=None)["max_tokens"] == 32000

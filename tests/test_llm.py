@@ -268,3 +268,26 @@ class TestSelectDiverse:
         assert select_diverse([], 3) == []
         assert select_diverse([only], 0) == []
         assert select_diverse([only], 5) == [only]
+
+
+class TestSynthesizerMaxTokens:
+    class _Recorder(LLMProvider):
+        def __init__(self):
+            super().__init__()
+            self.kwargs_seen = None
+
+        async def complete(self, messages, **kwargs):
+            self.kwargs_seen = kwargs
+            return "STRATEGY: BRAIDED\n---\nTITLE: T\nPREMISE: P\nBody.\n---"
+
+    def test_config_max_tokens_reaches_provider(self):
+        provider = self._Recorder()
+        synth = StorySynthesizer(provider, LLMConfig(max_tokens=48000))
+        asyncio.run(synth.synthesize([_make_skeleton()]))
+        assert provider.kwargs_seen["max_tokens"] == 48000
+
+    def test_unset_max_tokens_is_not_sent(self):
+        provider = self._Recorder()
+        synth = StorySynthesizer(provider, LLMConfig())
+        asyncio.run(synth.synthesize([_make_skeleton()]))
+        assert "max_tokens" not in provider.kwargs_seen

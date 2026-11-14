@@ -73,6 +73,7 @@ class LLMConfig(BaseModel):
     temperature: float = 0.8
     effort: str = ""  # low | medium | high | xhigh | max; empty = provider default
     story_count: int | None = None  # exact number of stories; None = let the LLM write 2-3
+    max_tokens: int | None = None  # response cap, thinking included; None = the provider's default
 
 
 # -- Preset definitions --

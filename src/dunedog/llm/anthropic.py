@@ -12,6 +12,10 @@ log = logging.getLogger(__name__)
 # Thinking models can take minutes on one request at high effort.
 ANTHROPIC_TIMEOUT = httpx.Timeout(connect=10.0, read=900.0, write=30.0, pool=10.0)
 
+# Thinking plus three stories at high effort.  The request is not streamed,
+# so keep this well short of the 128K model limit to stay inside the timeout.
+DEFAULT_MAX_TOKENS = 32000
+
 
 class AnthropicProvider(LLMProvider):
     """Provider for the Anthropic messages API."""
@@ -36,9 +40,10 @@ class AnthropicProvider(LLMProvider):
         body: dict = {
             "model": self.model,
             "messages": non_system,
-            # max_tokens covers thinking as well as the stories.
-            "max_tokens": kwargs.get(
-                "max_tokens", self.kwargs.get("max_tokens", 16000)
+            # max_tokens covers thinking as well as the stories: at high
+            # effort 16000 left too little room and cut the last story off.
+            "max_tokens": kwargs.get("max_tokens") or self.kwargs.get(
+                "max_tokens", DEFAULT_MAX_TOKENS
             ),
         }
         if system_content:

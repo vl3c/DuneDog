@@ -74,6 +74,7 @@ dunedog soup --length 200 --count 3 --seed 42
 
 - `--story-count N` asks for exactly N stories (default: the LLM writes 2-3).
 - `--effort low|medium|high|xhigh|max` sets reasoning effort on the `anthropic` provider (default: the model's own).
+- `--max-tokens N` caps the response, thinking included (default: the provider's own; 32000 on `anthropic`). Raise it if the last story comes back cut off at high effort.
 
 ### LLM Providers
 
