@@ -45,8 +45,11 @@ def _build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--provider", type=str, default=None, choices=["openai", "anthropic", "openrouter", "chatgpt"])
     gen.add_argument("--model", type=str, default=None, help="Model name (provider-specific)")
     gen.add_argument("--api-key", type=str, default=None, help="API key (prefer env var; visible in process list)")
-    gen.add_argument("--story-lines", type=_bounded_int(1, 200), default=20, help="Max lines per story (1-200, default 20)")
-    gen.add_argument("--stories-for-llm", type=_bounded_int(1, 20), default=20, help="Max skeletons sent to LLM (1-20, default 20)")
+    gen.add_argument("--story-lines", type=_bounded_int(1, 200), default=20, help="Approximate sentences per story (1-200, default 20)")
+    gen.add_argument("--stories-for-llm", type=_bounded_int(1, 20), default=None, help="Max skeletons sent to LLM (1-20, default: the preset's value)")
+    gen.add_argument("--story-count", type=_bounded_int(1, 10), default=None, help="Exact number of stories to write (default: the LLM writes 2-3)")
+    gen.add_argument("--effort", type=str, default=None, choices=["low", "medium", "high", "xhigh", "max"], help="Reasoning effort (anthropic provider only; default: the model's own)")
+    gen.add_argument("--max-tokens", type=_bounded_int(1000, 64000), default=None, help="Response token cap, thinking included (1000-64000; requests are not streamed; default: the provider's own, 32000 for anthropic)")
     gen.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     gen.add_argument("--no-llm", action="store_true", help="Skip LLM synthesis, export skeletons only")
 
@@ -102,7 +105,13 @@ def cmd_generate(args: argparse.Namespace) -> None:
     if args.count is not None:
         config.skeletons_to_generate = args.count
     config.llm.story_lines = args.story_lines
-    config.llm.max_stories_for_llm = args.stories_for_llm
+    if args.stories_for_llm is not None:
+        config.llm.max_stories_for_llm = args.stories_for_llm
+    config.llm.story_count = args.story_count
+    if args.effort:
+        config.llm.effort = args.effort
+    if args.max_tokens:
+        config.llm.max_tokens = args.max_tokens
 
     if args.provider:
         config.llm.provider = args.provider
@@ -149,7 +158,8 @@ def cmd_generate(args: argparse.Namespace) -> None:
     synthesizer = StorySynthesizer(provider, config.llm)
 
     console.print(f"[bold]Synthesizing stories via {config.llm.provider}...[/bold]")
-    top_skeletons = skeletons[:config.llm.max_stories_for_llm]
+    # The synthesizer picks a diverse handful itself; give it the full ranking.
+    top_skeletons = skeletons
 
     stories = asyncio.run(synthesizer.synthesize(top_skeletons))
 
@@ -157,7 +167,7 @@ def cmd_generate(args: argparse.Namespace) -> None:
         console.print(f"\n[bold green]Generated {len(stories)} stories:[/bold green]\n")
         for story in stories:
             console.print(Panel(
-                Text(story.content),
+                Text((f"{story.premise}\n\n" if story.premise else "") + story.content),
                 title=Text(story.title, style="bold"),
                 subtitle=f"Strategy: {story.strategy}",
                 border_style="blue",
@@ -252,7 +262,8 @@ def cmd_demo(args: argparse.Namespace) -> None:
             console.print("\n[bold]Synthesizing story...[/bold]")
             stories = asyncio.run(synthesizer.synthesize([skeleton]))
             for story in stories:
-                console.print(Panel(Text(story.content), title=Text(story.title), border_style="blue"))
+                body = (f"{story.premise}\n\n" if story.premise else "") + story.content
+                console.print(Panel(Text(body), title=Text(story.title), border_style="blue"))
 
 
 def cmd_soup(args: argparse.Namespace) -> None:

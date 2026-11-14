@@ -65,6 +65,7 @@ class StorySkeleton:
     spread_positions: dict[str, str] = field(default_factory=dict)  # position_name -> atom_name
     theme_tags: list[str] = field(default_factory=list)
     tone: str = ""
+    disruptions: list[str] = field(default_factory=list)  # wild card events that hit this skeleton
     primordial_source: PrimordialSource = field(default_factory=PrimordialSource)
     stats: GenerationStats = field(default_factory=GenerationStats)
     seed: int | None = None
@@ -80,6 +81,7 @@ class StorySkeleton:
             "spread_positions": self.spread_positions,
             "theme_tags": self.theme_tags,
             "tone": self.tone,
+            "disruptions": self.disruptions,
             "primordial_source": self.primordial_source.to_dict(),
             "stats": self.stats.to_dict(),
             "seed": self.seed,
@@ -93,6 +95,7 @@ class StorySkeleton:
             spread_positions=data.get("spread_positions", {}),
             theme_tags=data.get("theme_tags", []),
             tone=data.get("tone", ""),
+            disruptions=data.get("disruptions", []),
             primordial_source=PrimordialSource.from_dict(data.get("primordial_source", {})),
             stats=GenerationStats.from_dict(data.get("stats", {})),
             seed=data.get("seed"),

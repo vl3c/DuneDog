@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 
 def _nltk_available() -> bool:
     """Return True if NLTK and WordNet data are importable."""
@@ -14,13 +16,19 @@ def _nltk_available() -> bool:
         return False
 
 
-def get_synsets(word: str) -> list:
-    """Return WordNet synsets for *word*, or [] if unavailable."""
+@lru_cache(maxsize=200_000)
+def _synsets(word: str) -> tuple:
+    """Cached synset lookup — the pipeline asks about the same words constantly."""
     try:
         from nltk.corpus import wordnet
-        return wordnet.synsets(word)
+        return tuple(wordnet.synsets(word))
     except Exception:
-        return []
+        return ()
+
+
+def get_synsets(word: str) -> list:
+    """Return WordNet synsets for *word*, or [] if unavailable."""
+    return list(_synsets(word))
 
 
 def wup_similarity(word_a: str, word_b: str) -> float:
@@ -29,9 +37,8 @@ def wup_similarity(word_a: str, word_b: str) -> float:
     Returns 0.0 on any failure (missing data, no synsets, etc.).
     """
     try:
-        from nltk.corpus import wordnet
-        syns_a = wordnet.synsets(word_a)
-        syns_b = wordnet.synsets(word_b)
+        syns_a = _synsets(word_a)
+        syns_b = _synsets(word_b)
         if not syns_a or not syns_b:
             return 0.0
         score = syns_a[0].wup_similarity(syns_b[0])
@@ -43,14 +50,24 @@ def wup_similarity(word_a: str, word_b: str) -> float:
 def get_hypernyms(word: str) -> list[str]:
     """Return hypernym lemma names for the first synset of *word*."""
     try:
-        from nltk.corpus import wordnet
-        syns = wordnet.synsets(word)
+        syns = _synsets(word)
         if not syns:
             return []
         lemmas: list[str] = []
-        for hypernym in syns[0].hypernyms():
+        # Sorted: NLTK's hypernym order varies between processes, and callers
+        # use the first entry, so an unsorted list breaks reproducibility.
+        for hypernym in sorted(syns[0].hypernyms(), key=lambda h: h.name()):
             lemmas.extend(l.name() for l in hypernym.lemmas())
         return lemmas
+    except Exception:
+        return []
+
+
+def get_synonyms(word: str) -> list[str]:
+    """Return lemma names of the first synset of *word* (its closest synonyms)."""
+    try:
+        syns = _synsets(word)
+        return [l.name() for l in syns[0].lemmas()] if syns else []
     except Exception:
         return []
 
@@ -84,8 +101,7 @@ def get_pos_tag(word: str) -> str:
     Uses WordNet when available, falls back to suffix heuristics.
     """
     try:
-        from nltk.corpus import wordnet
-        syns = wordnet.synsets(word)
+        syns = _synsets(word)
         if syns:
             return _POS_MAP.get(syns[0].pos(), "noun")
     except Exception:

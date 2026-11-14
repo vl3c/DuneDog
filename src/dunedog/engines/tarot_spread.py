@@ -6,9 +6,20 @@ import json
 import random
 from pathlib import Path
 
-from dunedog.models.atoms import AtomCategory, StoryAtom
+from dunedog.models.atoms import GENERIC_TAGS, AtomCategory, AtomSource, StoryAtom
 from dunedog.models.skeleton import GenerationStats, StorySkeleton
 from dunedog.catalogues.loader import AtomCatalogue
+
+# A soup yields hundreds of raw dictionary words but only a few dozen evoked
+# catalogue atoms and a handful of coinages.  Drawn uniformly, a spread is all
+# raw words.  Instead each kind of atom gets a fixed share of the draw, however
+# many candidates it has: mostly curated atoms, with raw words and coinages
+# surviving as texture.
+_SOURCE_SHARE = {
+    AtomSource.CATALOGUE: 0.65,
+    AtomSource.NEOLOGISM: 0.15,
+}
+_RAW_SHARE = 0.20
 
 
 class TarotSpreadEngine:
@@ -73,7 +84,10 @@ class TarotSpreadEngine:
 
             # Step 4: fallback — sample from catalogue
             if chosen is None:
-                for cat in preferred or set(AtomCategory):
+                # Fixed order: iterating a set of enum members varies between
+                # processes, which would break same-seed reproducibility.
+                wanted = [AtomCategory(c) for c in pos.get("preferred_categories", [])]
+                for cat in wanted or list(AtomCategory):
                     sampled = self._catalogue.sample_weighted(cat, rng, n=1)
                     if sampled:
                         chosen = sampled[0]
@@ -97,9 +111,6 @@ class TarotSpreadEngine:
         if not candidates:
             return None
 
-        if not placed:
-            return rng.choice(candidates)
-
         placed_names = [a.name for a in placed.values()]
         weights: list[float] = []
         for cand in candidates:
@@ -107,10 +118,20 @@ class TarotSpreadEngine:
                 self._catalogue.get_affinity(cand.name, pn) for pn in placed_names
             )
             # Shift so all weights are positive; base weight of 1.0
-            weights.append(1.0 + aff_sum)
+            weights.append(max(1.0 + aff_sum, 0.01))
 
-        # Clamp negatives
-        weights = [max(w, 0.01) for w in weights]
+        # Rescale so each kind of atom holds its share of the total weight.
+        def kind(atom: StoryAtom) -> AtomSource | None:
+            return atom.source if atom.source in _SOURCE_SHARE else None
+
+        totals: dict[AtomSource | None, float] = {}
+        for cand, weight in zip(candidates, weights):
+            totals[kind(cand)] = totals.get(kind(cand), 0.0) + weight
+        weights = [
+            weight / totals[kind(cand)] * _SOURCE_SHARE.get(kind(cand), _RAW_SHARE)
+            for cand, weight in zip(candidates, weights)
+        ]
+
         return rng.choices(candidates, weights=weights, k=1)[0]
 
     # ------------------------------------------------------------------
@@ -178,7 +199,7 @@ class TarotSpreadEngine:
         theme_tags: list[str] = []
         for atom in placed_atoms:
             for tag in atom.tags:
-                if tag not in seen_tags:
+                if tag not in seen_tags and tag not in GENERIC_TAGS:
                     seen_tags.add(tag)
                     theme_tags.append(tag)
 

@@ -144,15 +144,120 @@ class TestCrossover:
         assert len(child_a.beats) > 0
         assert len(child_b.beats) > 0
 
-    def test_crossover_unions_theme_tags(self):
+    def test_crossover_themes_follow_atoms(self):
+        """Each child's theme tags come from the atoms it actually holds."""
         engine = StoryEvolutionEngine()
         pop = _make_population()
         rng = random.Random(42)
-        child_a, child_b = engine.crossover(pop[0], pop[1], rng)
-        # Both children should have theme tags from both parents
-        for tag in pop[0].theme_tags + pop[1].theme_tags:
-            assert tag in child_a.theme_tags
-            assert tag in child_b.theme_tags
+        for child in engine.crossover(pop[0], pop[1], rng):
+            carried = {t for a in child.atoms for t in a.tags}
+            assert child.theme_tags
+            assert set(child.theme_tags) <= carried
+
+    def test_crossover_keeps_atoms_and_roles_unique(self):
+        """No atom appears twice, and no atom holds two spread positions."""
+        engine = StoryEvolutionEngine()
+        pop = _make_population()
+        twin = engine._copy_skeleton(pop[0])  # breeding clones is the worst case
+        for seed in range(20):
+            for child in engine.crossover(pop[0], twin, random.Random(seed)):
+                names = [a.name for a in child.atoms]
+                assert len(names) == len(set(names))
+                roles = list(child.spread_positions.values())
+                assert len(roles) == len(set(roles))
+                assert set(roles) <= set(names)
+
+    def test_crossover_incoming_atom_inherits_role(self):
+        """A swapped-in atom takes over the position of the atom it replaced."""
+        engine = StoryEvolutionEngine()
+        pop = _make_population()
+        for seed in range(20):
+            parent = pop[0]
+            child_a, _ = engine.crossover(parent, pop[1], random.Random(seed))
+            assert set(child_a.spread_positions) == {"past", "present"}
+            # Atoms keep their slot index through a swap, so the atom now in
+            # the old holder's slot must be the one holding its position.
+            for pos, old_name in parent.spread_positions.items():
+                slot = [a.name for a in parent.atoms].index(old_name)
+                assert child_a.spread_positions[pos] == child_a.atoms[slot].name
+
+    def test_crossover_with_overlapping_parents_keeps_reading_and_cast(self):
+        """Parents that share atoms must not lose roles or shrink (chained renames)."""
+        engine = StoryEvolutionEngine()
+
+        def make(names):
+            return StorySkeleton(
+                atoms=[StoryAtom(n, AtomCategory.OBJECT, AtomSource.CATALOGUE, [n]) for n in names],
+                beats=["OPENING", "CLIMAX", "RESOLUTION"],
+                spread_positions={f"P{i}": n for i, n in enumerate(names)},
+            )
+
+        for seed in range(50):
+            a, b = make(["x", "y", "z"]), make(["y", "w", "x"])
+            for child in engine.crossover(a, b, random.Random(seed)):
+                assert len(child.atoms) == 3
+                assert len(child.spread_positions) == 3
+                assert sorted(child.spread_positions.values()) == sorted(x.name for x in child.atoms)
+
+    def test_mutation_keeps_themes_in_step_with_atoms(self):
+        engine = StoryEvolutionEngine()
+        for seed in range(10):
+            sk = engine.mutate(_make_population()[0], random.Random(seed), rate=1.0)
+            assert set(sk.theme_tags) == {t for a in sk.atoms for t in a.tags}
+
+    def test_copy_is_independent_of_parent(self):
+        engine = StoryEvolutionEngine()
+        parent = _make_population()[0]
+        child = engine._copy_skeleton(parent)
+        child.spread_positions["past"] = "someone else"
+        child.beats.reverse()
+        assert parent.spread_positions["past"] == "agent_0"
+        assert parent.beats[0] == "OPENING"
+
+    def test_mutation_spares_coined_words(self):
+        engine = StoryEvolutionEngine()
+        sk = _make_population()[0]
+        sk.atoms[1] = StoryAtom("snee", AtomCategory.OBJECT, AtomSource.NEOLOGISM, ["object"])
+        for seed in range(10):
+            mutated = engine.mutate(engine._copy_skeleton(sk), random.Random(seed), rate=1.0)
+            assert "snee" in [a.name for a in mutated.atoms]
+
+    def test_evolution_recombines_the_chaos_it_was_given(self):
+        """Apart from wild cards, evolved atoms all come from the starting population."""
+        engine = StoryEvolutionEngine()
+        pop = _make_population(n=12)
+        original = {a.name for s in pop for a in s.atoms}
+        config = EvolutionConfig(enabled=True, generations=10, population_size=12,
+                                 mutation_rate=0.5, wild_card_rate=0.0)
+        result = engine.evolve(pop, config, random.Random(42))
+        assert {a.name for s in result.population for a in s.atoms} <= original
+
+    def test_wild_card_leaves_its_description(self):
+        engine = StoryEvolutionEngine()
+        sk = engine.inject_wild_card(_make_population()[0], random.Random(3))
+        assert len(sk.disruptions) == 1
+        assert sk.disruptions[0]
+
+    def test_evolution_does_not_collapse_into_clones(self):
+        """Novelty-aware fitness keeps the population from converging."""
+        engine = StoryEvolutionEngine()
+        pop = _make_population(n=12)
+        config = EvolutionConfig(enabled=True, generations=15, population_size=12)
+        result = engine.evolve(pop, config, random.Random(42))
+        casts = {frozenset(a.name for a in s.atoms) for s in result.population}
+        assert len(casts) > len(result.population) // 2
+
+    def test_best_skeleton_is_never_lost(self):
+        """Parents compete with their children, so the best coherence never drops."""
+        engine = StoryEvolutionEngine()
+        pop = _make_population(n=12)
+        config = EvolutionConfig(enabled=True, generations=10, population_size=12,
+                                 novelty_weight=0.0)
+        result = engine.evolve(pop, config, random.Random(42))
+        history = result.fitness_history
+        assert len(result.population) == 12
+        assert all(b >= a for a, b in zip(history, history[1:])), history
+        assert result.population[0].coherence_score >= history[-1]
 
     def test_crossover_does_not_modify_parents(self):
         """Crossover must not mutate the parent skeletons."""

@@ -178,6 +178,43 @@ class TestAnthropicProvider:
             body = call_args.kwargs.get("json") or call_args[1].get("json")
             assert "system" not in body
 
+    def test_reads_text_after_thinking_blocks(self):
+        """Thinking models return a thinking block first; the text must still be found."""
+        provider = AnthropicProvider(api_key="k", model="claude-opus-5-5")
+        mock_resp = _mock_response({
+            "stop_reason": "end_turn",
+            "content": [
+                {"type": "thinking", "thinking": "", "signature": "x"},
+                {"type": "text", "text": "TITLE: A\n"},
+                {"type": "text", "text": "Story."},
+            ],
+        })
+        with patch("dunedog.llm.anthropic.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = _make_mock_client(mock_resp)
+            result = asyncio.run(provider.complete([{"role": "user", "content": "Hi"}]))
+        assert result == "TITLE: A\nStory."
+
+    def test_sends_effort_and_no_temperature(self):
+        provider = AnthropicProvider(api_key="k", model="claude-opus-5-5")
+        mock_client = _make_mock_client(_mock_response({"content": [{"type": "text", "text": "ok"}]}))
+        with patch("dunedog.llm.anthropic.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = mock_client
+            asyncio.run(provider.complete(
+                [{"role": "user", "content": "Hi"}], temperature=0.8, effort="high"))
+        body = mock_client.post.call_args.kwargs.get("json") or mock_client.post.call_args[1].get("json")
+        assert body["output_config"] == {"effort": "high"}
+        assert "temperature" not in body
+
+    def test_refusal_raises(self):
+        provider = AnthropicProvider(api_key="k", model="claude-fable-5-2")
+        mock_resp = _mock_response({
+            "stop_reason": "refusal", "stop_details": {"category": "cyber"}, "content": [],
+        })
+        with patch("dunedog.llm.anthropic.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = _make_mock_client(mock_resp)
+            with pytest.raises(LLMError, match="declined"):
+                asyncio.run(provider.complete([{"role": "user", "content": "Hi"}]))
+
     def test_complete_error_500(self):
         provider = AnthropicProvider(api_key="test-key", model="claude-sonnet-4-5-20250929")
         mock_resp = _mock_response({}, status_code=500)
@@ -373,3 +410,39 @@ class TestCreateProvider:
     def test_custom_model_overrides_default(self):
         p = create_provider("openai", api_key="key", model="gpt-3.5-turbo")
         assert p.model == "gpt-3.5-turbo"
+
+
+class TestAnthropicMaxTokens:
+    def _body(self, **complete_kwargs):
+        provider = AnthropicProvider(api_key="k", model="claude-fable-5-2")
+        mock_client = _make_mock_client(_mock_response({"content": [{"type": "text", "text": "ok"}]}))
+        with patch("dunedog.llm.anthropic.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = mock_client
+            asyncio.run(provider.complete([{"role": "user", "content": "Hi"}], **complete_kwargs))
+        return mock_client.post.call_args.kwargs.get("json") or mock_client.post.call_args[1].get("json")
+
+    def test_default_leaves_room_for_thinking(self):
+        assert self._body(effort="high")["max_tokens"] == 32000
+
+    def test_explicit_max_tokens_wins(self):
+        assert self._body(max_tokens=64000)["max_tokens"] == 64000
+
+    def test_none_max_tokens_uses_default(self):
+        assert self._body(max_tokens=None)["max_tokens"] == 32000
+
+    def test_none_in_provider_kwargs_uses_default(self):
+        provider = AnthropicProvider(api_key="k", model="claude-fable-5-2", max_tokens=None)
+        mock_client = _make_mock_client(_mock_response({"content": [{"type": "text", "text": "ok"}]}))
+        with patch("dunedog.llm.anthropic.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = mock_client
+            asyncio.run(provider.complete([{"role": "user", "content": "Hi"}]))
+        assert mock_client.post.call_args.kwargs["json"]["max_tokens"] == 32000
+
+    def test_cut_off_response_is_flagged(self):
+        provider = AnthropicProvider(api_key="k", model="claude-fable-5-2")
+        mock_client = _make_mock_client(_mock_response(
+            {"content": [{"type": "text", "text": "when it was fin"}], "stop_reason": "max_tokens"}))
+        with patch("dunedog.llm.anthropic.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = mock_client
+            asyncio.run(provider.complete([{"role": "user", "content": "Hi"}]))
+        assert provider.last_truncated

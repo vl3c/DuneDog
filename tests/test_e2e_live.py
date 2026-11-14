@@ -98,7 +98,7 @@ class TestFullPipelineGeminiFlash:
         )
         synthesizer = StorySynthesizer(provider, llm_config)
 
-        top_skeletons = skeletons[:llm_config.max_stories_for_llm]
+        top_skeletons = skeletons  # the synthesizer selects a diverse handful itself
 
         t1 = time.time()
         stories = asyncio.run(synthesizer.synthesize(top_skeletons))

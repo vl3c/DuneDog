@@ -71,7 +71,8 @@ class NeologismDefiner:
             return "adjective"
         if any(word_lower.endswith(s) for s in ("ize", "ify", "ate", "ed", "ing")):
             return "verb"
-        if any(word_lower.startswith(s) for s in ("un", "re", "de")):
+        # Only a longer word reads as prefix + stem; "dete" is not de- + te.
+        if len(word_lower) >= 6 and any(word_lower.startswith(s) for s in ("un", "re", "de")):
             return "verb"
         return "noun"
 
@@ -92,12 +93,20 @@ class NeologismDefiner:
 
         pos = self.infer_part_of_speech(neologism.text)
         mood = neologism.phonetic_mood or analyze_phonetic_mood(neologism.text)
-        context = rng.choice(context_words) if context_words else "the unknown"
+
+        # A definition must not lean on the word it defines, or the reader
+        # learns nothing ("the sound a wras makes").  {context} and {thing}
+        # are filled with two different words from the surroundings.
+        own = neologism.text.lower()
+        pool = list({w.lower(): w for w in reversed(context_words) if w.lower() != own}.values())[::-1]
+        context = rng.choice(pool) if pool else "the unknown"
+        others = [w for w in pool if w.lower() != context.lower()]
+        thing = rng.choice(others) if others else "something"
 
         pos_templates = templates.get(pos, templates.get("noun", []))
         template = rng.choice(pos_templates)
         definition = (
-            template.replace("{word}", neologism.text)
+            template.replace("{thing}", thing)
             .replace("{mood}", mood)
             .replace("{context}", context)
         )

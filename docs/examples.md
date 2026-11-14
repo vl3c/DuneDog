@@ -2,6 +2,8 @@
 
 Sample output from DuneDog's full pipeline: chaos -> crystallization -> engines -> LLM synthesis.
 
+> These runs predate the current pipeline. They were generated when the LLM received 20 near-identical skeletons made mostly of raw dictionary words and undefined neologisms, which is why the stories lean on words like *oboe*, *dal* and *liter* and treat neologisms as codenames. The engine now sends a few diverse readings built from curated atoms, defined coined words, disruptions and shared world laws (see the README). The examples have not been regenerated yet.
+
 ## Claude Opus 4.6
 
 | Setting               | Value                                                    |

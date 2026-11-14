@@ -3,13 +3,23 @@
 from __future__ import annotations
 
 import random
+import re
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 from dunedog.models.atoms import AtomCategory, AtomSource, StoryAtom
 from dunedog.models.results import DictionaryChaosResult, LetterSoupResult
 from dunedog.catalogues.loader import AtomCatalogue
-from dunedog.utils.wordnet_utils import get_hypernyms, get_pos_tag
-from dunedog.utils.embeddings import SimilarityEngine, get_similarity_engine
+from dunedog.utils.wordnet_utils import get_hypernyms, get_pos_tag, get_synonyms
+
+# Words in catalogue atom names that say nothing about the atom.
+_NAME_STOPWORDS = frozenset({
+    "that", "with", "from", "have", "what", "also", "never", "cannot",
+    "every", "their", "into", "been", "does", "only", "will", "more",
+    "than", "them", "were", "when", "where", "which", "whose", "there",
+    "these", "those", "about", "after", "before", "still", "once",
+    "someone", "something", "anyone", "everything", "nothing", "itself",
+})
 
 # Hypernym lemma sets used for category inference.
 _ANIMATE_HYPERNYMS = frozenset({
@@ -55,11 +65,27 @@ class SeedCrystallizer:
     def __init__(
         self,
         catalogue: AtomCatalogue | None = None,
-        similarity_threshold: float = 0.6,
     ) -> None:
         self._catalogue = catalogue or AtomCatalogue.load()
-        self._threshold = similarity_threshold
-        self._similarity: SimilarityEngine = get_similarity_engine()
+        self._key_index = self._build_key_index()
+
+    def _build_key_index(self) -> dict[str, list[StoryAtom]]:
+        """Index catalogue atoms by the words that can evoke them.
+
+        An atom's keys are its tags plus the content words of its name, so
+        "a child with no shadow" [uncanny, innocence] answers to *child*,
+        *shadow*, *uncanny* and *innocence*.
+        """
+        index: dict[str, list[StoryAtom]] = defaultdict(list)
+        for atom in self._catalogue.atoms:
+            keys = {t.lower() for t in atom.tags}
+            keys |= {
+                w for w in re.findall(r"[a-z]+", atom.name.lower())
+                if len(w) >= 4 and w not in _NAME_STOPWORDS
+            }
+            for key in sorted(keys):
+                index[key].append(atom)
+        return index
 
     # ------------------------------------------------------------------
     # Public API
@@ -75,7 +101,7 @@ class SeedCrystallizer:
         """Map *words* to StoryAtoms by inferring category from POS/semantics.
 
         For each word the pipeline is:
-        1. Try to map to an existing catalogue atom (similarity > threshold).
+        1. Let the word evoke a catalogue atom (see ``map_to_catalogue``).
         2. Infer a category and create a new atom.
         3. If no category can be inferred, record as unmapped.
 
@@ -99,11 +125,15 @@ class SeedCrystallizer:
 
         result = CrystallizationResult()
 
+        evoked: set[str] = set()
+
         for word in unique_words:
             # 1. catalogue match
-            mapped = self.map_to_catalogue(word)
+            mapped = self.map_to_catalogue(word, rng)
             if mapped is not None:
-                result.mapped_atoms.append(mapped)
+                if mapped.name not in evoked:
+                    evoked.add(mapped.name)
+                    result.mapped_atoms.append(mapped)
                 continue
 
             # 2. infer category and create atom
@@ -167,24 +197,31 @@ class SeedCrystallizer:
     # Catalogue mapping
     # ------------------------------------------------------------------
 
-    def map_to_catalogue(self, word: str) -> StoryAtom | None:
-        """Find the closest catalogue atom by similarity.
+    def map_to_catalogue(
+        self, word: str, rng: random.Random | None = None
+    ) -> StoryAtom | None:
+        """Let a chaos word evoke a curated catalogue atom.
 
-        Returns the best match whose score exceeds ``self._threshold``,
-        or ``None`` if nothing is close enough.
+        The word evokes an atom when the word itself, one of its synonyms,
+        or one of its direct hypernyms is among the atom's keys (tags and
+        name words).  Closest relation wins; when several atoms share the
+        key, *rng* picks one.  The returned atom is a copy that remembers
+        the word that summoned it in ``metadata["evoked_by"]``.
         """
-        catalogue_atoms = self._catalogue.atoms
-        if not catalogue_atoms:
-            return None
-
-        candidates = [a.name for a in catalogue_atoms]
-        top = self._similarity.most_similar(word, candidates, n=1)
-
-        if top and top[0][1] >= self._threshold:
-            match_name = top[0][0]
-            for atom in catalogue_atoms:
-                if atom.name == match_name:
-                    return atom
+        candidates = [word, *get_synonyms(word), *get_hypernyms(word)]
+        for cand in candidates:
+            matches = self._key_index.get(cand.lower().replace("_", " "))
+            if not matches:
+                continue
+            base = rng.choice(matches) if rng is not None else matches[0]
+            return StoryAtom(
+                name=base.name,
+                category=base.category,
+                source=AtomSource.CATALOGUE,
+                tags=list(base.tags),
+                rarity=base.rarity,
+                metadata={**base.metadata, "evoked_by": word},
+            )
         return None
 
     # ------------------------------------------------------------------

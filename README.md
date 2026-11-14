@@ -10,15 +10,29 @@ The pipeline has four layers:
 
 **Layer 0 — Primordial Chaos.** Two generators produce raw material. *Letter Soup* generates random strings with English-biased letter frequencies, then extracts real words, near-words (via Levenshtein distance), and neologisms (pronounceable non-words) with phonetic mood analysis. *Dictionary Chaos* samples real words using five strategies (uniform, frequency-weighted, rare, noun-heavy, phonetic clusters) and arranges them into near-grammatical phrases.
 
-**Layer 1 — Crystallization.** Chaos output is mapped to **Story Atoms** — typed building blocks (agents, objects, locations, tensions, triggers, qualities) drawn from a catalogue of ~300 entries using WordNet similarity. Novel words become new atoms. Neologisms get definitions generated from their phonetic properties.
+**Layer 1 — Crystallization.** Chaos output is mapped to **Story Atoms** — typed building blocks (agents, objects, locations, tensions, triggers, qualities). A chaos word *evokes* a curated atom from the ~300-entry catalogue when the word, a synonym or a direct hypernym matches one of the atom's tags or name words: *ache* summons "the archivist of wounds", *dale* summons "a valley where echoes live independently". Each evoked atom remembers the word that summoned it. Words that evoke nothing become raw atoms. The few most pronounceable neologisms (three per soup by default) are kept as coined words, each with a definition generated from its phonetic properties.
 
 **Layer 2 — Generative Engines.** Multiple engines build **Story Skeletons** from the atoms:
-- *Tarot Spread* — assigns atoms to narrative positions across 5 spread types (Hero's Journey, Conflict Diamond, etc.)
-- *Markov Chains* — generates beat sequences (13 beat types: OPENING, TENSION, REVELATION, etc.)
-- *Constraint Solver* — validates against world rules and scores coherence
-- *Evolutionary* (optional) — breeds better skeletons via selection, crossover, mutation, and wild card injection
+- *Tarot Spread* — deals atoms into narrative positions across 5 spread types (Hero's Journey, Three Act, Love Triangle, Mystery, Cosmic). The draw is mostly curated atoms, with raw chaos words and coined words kept as texture.
+- *Markov Chains* — generates beat sequences (13 beat types: OPENING, CRISIS, CLIMAX, etc.)
+- *Constraint Solver* — validates against world rules and scores coherence: atom affinity, beat flow, shared themes and a varied cast. Word-class tags ("noun", "object") do not count as themes, and a repeated atom counts once.
+- *Evolutionary* (optional) — breeds skeletons via selection, crossover, mutation, and wild card injection. Fitness is coherence plus novelty (distance to the nearest other skeletons), so the population does not collapse into clones. Parents compete with their offspring for places, so the best skeleton is only displaced by a fitter one. Mutation recombines atoms the chaos produced for this run; only wild cards bring in something from outside. An atom swapped in by crossover inherits the role of the atom it replaces.
 
-**Layer 3 — LLM Synthesis.** The top skeletons (ranked by coherence) are sent to an LLM which combines them into interconnected narratives using strategies like BRAIDED (parallel stories with thematic echoes), CAUSE_AND_ECHO (one story's ending begins another), RASHOMON (same events from different perspectives), or ANTHOLOGY_FRAME (meta-story containing others).
+**Layer 3 — LLM Synthesis.** A small, deliberately *diverse* set of skeletons (good coherence, few shared atoms) is sent to an LLM, which combines them into interconnected narratives using strategies like BRAIDED (parallel stories with thematic echoes), CAUSE_AND_ECHO (one story's ending begins another), RASHOMON (same events from different perspectives), or ANTHOLOGY_FRAME (meta-story containing others).
+
+Each skeleton reaches the LLM as a *reading*, not a parts list (an illustrative seed, assembled from lines of real runs):
+
+```
+--- Seed 5 ---
+Tone: eerie (the noise it came from sounded dreamy)
+Reading:
+  The Void (the emptiness before all things): a valley where echoes live independently [location] — summoned from the noise by the word "dale"
+  The Signal (a message from the incomprehensible): the woman who collects silences [agent] — summoned from the noise by the word "bawd"
+  The Remnant (what survives the encounter with infinity): eots [object] — a coined word (noun) meaning: the residue left behind after flo
+Disruption: Silence spreads from one thing to the next, consuming all sound
+```
+
+The prompt also states two **laws of the world** all the stories share, taken from the world rules ("Mapmakers always get lost", "The sea remembers everything given to it"). Laws triggered by an atom in play come first; the rest are chosen deterministically from the atoms. The LLM is told to treat the seeds as provocations rather than a checklist, to leave at least half of the elements out, to use coined words in their given meaning, and to write a one-line premise (who wants what, but what stands in the way) before each story.
 
 ## Installation
 
@@ -50,9 +64,17 @@ dunedog soup --length 200 --count 3 --seed 42
 
 | Preset | Engines | Evolution | Skeletons | Sent to LLM |
 |---|---|---|---:|---:|
-| `quick` | tarot only | off | 50 | 5 |
-| `deep` | all | 5 generations | 200 | 20 |
-| `experimental` | all | 20 generations | 500 | 20 |
+| `quick` | tarot only (Hero's Journey) | off | 50 | 5 |
+| `deep` | all, every spread type | 5 generations | 200 | 6 |
+| `experimental` | all, every spread type | 20 generations | 100 | 6 |
+
+"Sent to LLM" skeletons are chosen for diversity, not taken from the top of the ranking. Override the count with `--stories-for-llm`.
+
+### Story options
+
+- `--story-count N` asks for exactly N stories (default: the LLM writes 2-3).
+- `--effort low|medium|high|xhigh|max` sets reasoning effort on the `anthropic` provider (default: the model's own).
+- `--max-tokens N` caps the response, thinking included (default: the provider's own; 32000 on `anthropic`, at most 64000). Raise it if the last story comes back cut off at high effort.
 
 ### LLM Providers
 
@@ -61,7 +83,7 @@ Set your API key via environment variable or `--api-key`:
 | Provider | Env Variable | Example Model |
 |---|---|---|
 | `openai` | `OPENAI_API_KEY` | `gpt-4o` |
-| `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-5-20250929` |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
 | `openrouter` | `OPENROUTER_API_KEY` | `google/gemini-3-flash-preview` |
 | `chatgpt` | `CHATGPT_TOKEN` | `gpt-4o` |
 
@@ -80,7 +102,7 @@ The same seed always produces identical skeletons. All randomness flows through 
 ## Testing
 
 ```bash
-pytest tests/ -v         # 311 tests, ~60s
+pytest tests/ -v         # 359 tests, ~30s
 ```
 
 ## License
